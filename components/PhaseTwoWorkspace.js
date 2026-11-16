@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 const money = (n) => "₹" + Number(n || 0).toLocaleString("en-IN");
-const today = () => new Date().toISOString().slice(0, 10);
-const monthStart = () => new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
+const today = () => { const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
+const monthStart = () => { const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-01"; };
 
 function Panel({ title, subtitle, children, action }) {
   return <section className="card phase2Panel"><div className="sectionTitle"><div><h2>{title}</h2>{subtitle && <p className="muted">{subtitle}</p>}</div>{action}</div>{children}</section>;
@@ -235,7 +235,7 @@ export default function PhaseTwoWorkspace({ tab, me, say, data, refresh, onNavig
     setNewIncentive({ driver_id: "", amount: "", reason: "" }); say("Operator incentive added.", "success"); loadWorkspace();
   };
   const generatePayroll = async (driver) => {
-    const period = new Date(new Date().getFullYear(),new Date().getMonth(),1).toLocaleDateString("en-CA");
+    const period = monthStart();
     const existing = payrollRows.find(p=>p.driver_id===driver.id&&p.period_month===period);
     if (existing?.status==="paid") return say("This month's salary is already marked paid.", "error");
     const rows = attendance.filter(a=>a.driver_id===driver.id);
