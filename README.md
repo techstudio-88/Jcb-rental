@@ -8,7 +8,7 @@ A role-based Next.js PWA for customers, machine operators and the rental owner. 
 - Driver: assigned duties, work timer that restores after reload, GPS updates while active, screen wake lock where supported, diesel/repair entries with camera/gallery proof.
 - Admin: booking approval/rejection and driver assignment, fleet/rate management, payment verification, monthly revenue/expense summary, per-machine totals, CSV export, team roles, attendance and wage estimates.
 - Phase 2 customer tools: database-synced machine favourites, pending/confirmed booking change requests with owner approval, coupon application with server-calculated discounts and redemption limits, referral invitations/reward tracking, completed-booking reviews with owner moderation, and support tickets with live threaded replies.
-- Phase 2 operator tools: attendance check-in/out, active-duty breaks, incentive history and monthly salary records with owner payout status.
+- Phase 2 operator tools: accept/decline assigned duties, GPS arrival check-in, Google Maps navigation, breakdown reporting, work-completion sign-off, attendance check-in/out, active-duty breaks, incentive history and monthly salary records with owner payout status.
 - Phase 2 owner tools: support inbox, booking-change approvals, review moderation, coupon publishing, referral qualification/rewarding, maintenance calendar, machine expense ledger, attendance register, incentive controls and salary calculation/payout tracking.
 - PWA: install manifest with 192px/512px icons, service worker, mobile-first shell, animated splash/onboarding, bottom sheets, animated counters, confetti, skeleton loading and Android install prompt.
 - Backend: role-aware RLS, private helper schema, booking/payment notifications, Realtime publication and private photo-proof bucket.
@@ -36,7 +36,7 @@ Never add a Supabase service-role/secret key to a NEXT_PUBLIC variable or the br
 
 ## Supabase setup / owner bootstrap
 
-The schema and follow-up hardening are recorded in `supabase/migrations/202611160001_initial_schema.sql`, `202611160002_policy_hardening.sql`, `202611160003_booking_security_hardening.sql`, `202611160004_photo_proof_heic.sql`, `202611160005_diesel_log_realtime.sql`, `20261116152844_phase_2_customer_operator_owner_modules.sql`, `20261116153132_phase_2_coupon_and_review_integrity.sql`, `20261116153149_phase_2_operator_payroll.sql`, and `20261116153312_phase_2_rls_performance_hardening.sql`. The Phase 2 migrations are applied to project `efxsauiaxwnloqgnlxuj`.
+The schema and follow-up hardening are recorded in `supabase/migrations/202611160001_initial_schema.sql`, `202611160002_policy_hardening.sql`, `202611160003_booking_security_hardening.sql`, `202611160004_photo_proof_heic.sql`, `202611160005_diesel_log_realtime.sql`, `20261116152844_phase_2_customer_operator_owner_modules.sql`, `20261116153132_phase_2_coupon_and_review_integrity.sql`, `20261116153149_phase_2_operator_payroll.sql`, `20261116153312_phase_2_rls_performance_hardening.sql`, `20261116153417_phase_2_driver_job_events.sql`, `20261116153454_phase_2_driver_event_policy_hardening.sql`, and `20261116153511_phase_2_one_coupon_per_booking.sql`. The Phase 2 migrations are applied to project `efxsauiaxwnloqgnlxuj`.
 
 1. In Supabase Authentication → Providers → Phone, enable phone login and configure an SMS provider (Twilio or MSG91/another supported provider). Without this, real customer OTP delivery will not work.
 2. For controlled development only, configure Supabase test OTP numbers/codes; do not use a public hardcoded OTP in production.
