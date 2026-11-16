@@ -33,7 +33,7 @@ Never add a Supabase service-role/secret key to a NEXT_PUBLIC variable or the br
 
 ## Supabase setup / owner bootstrap
 
-The schema and follow-up hardening are recorded in `supabase/migrations/202611160001_initial_schema.sql` and `supabase/migrations/202611160002_policy_hardening.sql`. Both were applied directly to project `efxsauiaxwnloqgnlxuj`.
+The schema and follow-up hardening are recorded in `supabase/migrations/202611160001_initial_schema.sql` and `supabase/migrations/202611160002_policy_hardening.sql` and `supabase/migrations/202611160003_booking_security_hardening.sql`. All three were applied directly to project `efxsauiaxwnloqgnlxuj`.
 
 1. In Supabase Authentication → Providers → Phone, enable phone login and configure an SMS provider (Twilio or MSG91/another supported provider). Without this, real customer OTP delivery will not work.
 2. For controlled development only, configure Supabase test OTP numbers/codes; do not use a public hardcoded OTP in production.
@@ -42,7 +42,7 @@ The schema and follow-up hardening are recorded in `supabase/migrations/20261116
 5. Promote that already-created profile to admin in SQL Editor (replace the phone number with the owner's number, digits only):
    ```sql
    update public.profiles set role='admin', name='Owner'
-   where phone='91XXXXXXXXXX';
+   where phone='+91XXXXXXXXXX';
    ```
 6. The owner signs out and back in to refresh the role, then adds the real fleet, rates and drivers in Team.
 

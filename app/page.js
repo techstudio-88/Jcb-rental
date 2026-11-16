@@ -63,7 +63,8 @@ export default function Home() {
   const [noticeOpen,setNoticeOpen] = useState(false);
   const [data,setData] = useState({bookings:[],machines:[],logs:[],payments:[],expenses:[],users:[]});
   const [bookingOpen,setBookingOpen] = useState(false);
-  const [bookingType,setBookingType] = useState("monthly");\n  const [bookingStep,setBookingStep] = useState(1);
+  const [bookingType,setBookingType] = useState("monthly");
+  const [bookingStep,setBookingStep] = useState(1);
   const [form,setForm] = useState({machine_id:"",site_address:"",work_type:"Digging",start_date:new Date().toISOString().slice(0,10),with_diesel:true,months:1,duration_hours:4,duration_days:1});
   const [selected,setSelected] = useState(null);
   const [trackId,setTrackId] = useState(null);
@@ -164,7 +165,12 @@ export default function Home() {
   const updateForm=(k,v)=>setForm(old=>({...old,[k]:v}));
   const currentMachine=data.machines.find(m=>m.id===form.machine_id);
   const estimate=estimateBooking(currentMachine,{...form,type:bookingType});
-  const advanceBooking=()=>{\n    if(bookingStep===1&&!form.machine_id)return say("Choose a machine first.","error");\n    if(bookingStep===2&&form.site_address.trim().length<5)return say("Enter the complete work-site address.","error");\n    setBookingStep(s=>Math.min(3,s+1));\n  };\n  const createBooking=async()=>{
+  const advanceBooking=()=>{
+    if(bookingStep===1&&!form.machine_id)return say("Choose a machine first.","error");
+    if(bookingStep===2&&form.site_address.trim().length<5)return say("Enter the complete work-site address.","error");
+    setBookingStep(s=>Math.min(3,s+1));
+  };
+  const createBooking=async()=>{
     if(!form.machine_id)return say("Choose a machine first.","error");
     if(form.site_address.trim().length<5)return say("Enter the complete work-site address.","error");
     const payload={...form,type:bookingType,customer_id:me.id,quoted_rate:bookingType==="monthly"?(form.with_diesel?currentMachine.monthly_diesel:currentMachine.monthly_no_diesel):bookingType==="daily"?(currentMachine.daily_rate||currentMachine.hourly_rate*8):currentMachine.hourly_rate,status:"pending"};
