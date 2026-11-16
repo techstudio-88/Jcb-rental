@@ -407,3 +407,11 @@ button,.btn{ -webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .phase2MoreCard i{font-size:12px;font-style:normal;color:var(--yellow,#ffb51b);font-weight:800;margin-top:auto}
 @media(max-width:760px){.phase2Grid{grid-template-columns:1fr;gap:12px}.phase2MoreGrid{grid-template-columns:1fr 1fr}.phase2MoreCard{min-height:132px;padding:15px}.phase2Row{align-items:flex-start;flex-direction:column}.phase2Row .buttonRow{width:100%}.phase2Panel .buttonRow .btn{font-size:12px;padding:9px 10px}}
 @media(max-width:390px){.phase2MoreGrid{grid-template-columns:1fr}.phase2MoreCard{min-height:112px}}
+
+
+.phase2Signoff{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 13px;margin:12px 0;border:1px solid #45c78b55;background:#45c78b0b;border-radius:12px}
+.phase2Signoff b{font-size:12px}
+.phase2Signoff small{display:block;color:var(--muted,#9aa3ad);font-size:10px;margin-top:3px}
+.phase2EventLine{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 10px;margin:6px 0;background:#ffffff08;border-radius:10px}
+.phase2EventLine b{font-size:11px;text-transform:capitalize;color:var(--yellow,#ffb51b)}
+.phase2EventLine small{font-size:10px;color:var(--muted,#9aa3ad)}
