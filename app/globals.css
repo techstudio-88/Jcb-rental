@@ -482,11 +482,7 @@ a{color:#ff9a4a}
   border-right:1px solid rgba(255,255,255,.045);
   box-shadow:0 30px 100px rgba(0,0,0,.55);
 }
-.appShell:before{
-  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
-  background:radial-gradient(ellipse at 50% 0%,rgba(255,104,36,.045),transparent 48rem);
-}
-.appShell>*{position:relative}
+/* Background atmosphere is painted by body and appShell gradients; avoid a layer above fixed overlays. */
 .topbar{
   height:78px;padding:calc(13px + env(safe-area-inset-top)) 19px 11px;
   background:rgba(12,12,14,.76);
