@@ -454,8 +454,11 @@ export default function Home() {
     const {error}=await supabase.from("bookings").update({status}).eq("id",b.id);
     if(error)return say(error.message,"error");
     if(status==="done"&&b.driver_id&&b.customer_id){
-      const signoff=await supabase.from("job_signoffs").upsert({booking_id:b.id,driver_id:b.driver_id,customer_id:b.customer_id,driver_notes:"Owner marked the booking completed"},{onConflict:"booking_id"});
-      if(signoff.error)say("Booking completed, but customer sign-off could not be created: "+signoff.error.message,"error");
+      const existing=await supabase.from("job_signoffs").select("id").eq("booking_id",b.id).maybeSingle();
+      if(!existing.data){
+        const signoff=await supabase.from("job_signoffs").insert({booking_id:b.id,driver_id:b.driver_id,customer_id:b.customer_id,driver_notes:"Owner marked the booking completed"});
+        if(signoff.error)say("Booking completed, but customer sign-off could not be created: "+signoff.error.message,"error");
+      }
     }
     if(["done","cancelled","rejected"].includes(status)&&b.machine_id)await supabase.from("machines").update({status:"free"}).eq("id",b.machine_id);
     say("Booking "+statusLabel(status).toLowerCase()+".");refresh();
