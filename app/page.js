@@ -162,7 +162,7 @@ export default function Home() {
     setNotifications(notifs||[]);
     setDataLoading(false);
   },[me?.id,me?.role,demoMode,say]);
-  useEffect(()=>{if(!me?.id)return;refresh();const channel=supabase.channel("app-"+me.id)
+  useEffect(()=>{if(!me?.id||me?.isDemo)return;refresh();const channel=supabase.channel("app-"+me.id)
     .on("postgres_changes",{event:"*",schema:"public",table:"bookings"},refresh)
     .on("postgres_changes",{event:"*",schema:"public",table:"payments"},refresh)
     .on("postgres_changes",{event:"*",schema:"public",table:"logbook"},refresh)
@@ -182,7 +182,7 @@ export default function Home() {
   };
   const verifyOtp=async()=>{
     if(demoMode){
-      if(!/^\\d{4,6}$/.test(otp))return say("Enter any 4–6 digit demo code.","error");
+      if(!/^\d{4,6}$/.test(otp))return say("Enter any 4–6 digit demo code.","error");
       const demoUser={id:"demo-customer",phone:"+91"+phone,role:"customer",name:"Demo Customer",isDemo:true};
       try { localStorage.setItem("jcb_demo_session",JSON.stringify(demoUser)); } catch {}
       setMe(demoUser);setSession(null);setBooting(false);say("Demo sign-in successful. Demo changes are not saved.");return;
