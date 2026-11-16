@@ -268,7 +268,7 @@ export default function PhaseTwoWorkspace({ tab, me, say, data, refresh, onNavig
     const booking = myBookings.find(b => b.id === couponBooking && b.status === "pending");
     const coupon = coupons.find(c => c.id === selectedCoupon);
     if (!booking || !coupon) return say("Choose a pending booking and an active coupon.", "error");
-    const base = Number(booking.quoted_rate || 0);
+    const base = Number(booking.quoted_rate || 0) * (booking.type === "monthly" ? Number(booking.months || 1) : booking.type === "daily" ? Number(booking.duration_days || 1) : Number(booking.duration_hours || 1));
     if (base < Number(coupon.minimum_booking_amount || 0)) return say("This booking does not meet the coupon minimum.", "error");
     let discount = coupon.discount_type === "percent" ? Math.round(base * Number(coupon.discount_value) / 100) : Number(coupon.discount_value);
     if (coupon.maximum_discount) discount = Math.min(discount, Number(coupon.maximum_discount));
