@@ -129,3 +129,151 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .siteSaveRow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 0 11px}
 .siteSaveRow span{font-size:9px;color:var(--muted)}
 .siteSaveRow button{white-space:nowrap;border:1px solid #6a5127;background:#2d2518;color:var(--yellow);border-radius:10px;padding:8px 10px;font-size:10px;font-weight:800}
+
+
+/* PHASE 01 — JCB RENTAL PRODUCT-WIDE VISUAL SYSTEM */
+:root{
+  --yellow:#ff9f1c;--yellow2:#ffc45b;--bg:#090c10;--panel:#111820;--card:#151e27;
+  --line:#26323e;--muted:#9aa8b6;--white:#f5f7fa;--green:#4dd6a0;--red:#ff6e68;--blue:#76baff;
+}
+html{background:#090c10;scroll-behavior:smooth}
+body{background:radial-gradient(ellipse at 50% -20%,#25313d 0%,#0b1016 48%,#080b0f 100%);color:var(--white)}
+.appShell{max-width:none;width:100%;min-height:100dvh;padding-bottom:calc(98px + env(safe-area-inset-bottom));background:linear-gradient(180deg,#101720 0%,#0b1016 44%,#090c10 100%);overflow:clip}
+.topbar{height:76px;padding:calc(11px + env(safe-area-inset-top)) clamp(16px,4vw,48px) 10px;background:#0d141ceF;border-bottom:1px solid #ffffff12;box-shadow:0 12px 38px #0003}
+.brand{font-size:19px;letter-spacing:-.5px}
+.brandIcon{width:45px;height:45px;border-radius:15px;background:linear-gradient(145deg,#ffd16b,#ff9510);box-shadow:0 8px 28px #ff9f1c30,inset 0 1px #fff8}
+.brand small{font-size:8px;letter-spacing:2.2px;color:#94a2b0}
+.iconButton{width:42px;height:42px;border-radius:14px;background:linear-gradient(145deg,#1b2732,#121a22);border-color:#33414f}
+.avatar{border:1px solid #74521f;background:linear-gradient(145deg,#49351b,#202a34);color:#ffd07a}
+.pageHead{padding:26px clamp(17px,4vw,50px) 18px;align-items:center}
+.pageHead h1{font-size:clamp(27px,3vw,36px);letter-spacing:-1.2px}
+.pageHead .eyebrow{color:#8393a2}
+.welcomeName{border:1px solid #2c3a46;background:#121b24;padding:9px 13px;border-radius:30px;color:#d3dbe2}
+.content{padding:0 clamp(16px,4vw,50px) 32px;animation:phaseIn .38s cubic-bezier(.2,.7,.2,1)}
+@keyframes phaseIn{from{opacity:0;transform:translateY(13px);filter:blur(3px)}to{opacity:1;transform:translateY(0);filter:blur(0)}}
+.card{position:relative;background:linear-gradient(145deg,#1a2530 0%,#131c25 68%,#111820 100%);border:1px solid #2c3a47;border-radius:22px;padding:18px;box-shadow:0 12px 32px #0003,inset 0 1px #ffffff08}
+.sectionTitle{margin:27px 3px 13px}
+.sectionTitle h2{font-size:19px;letter-spacing:-.5px}
+.sectionTitle span{color:#91a0ae}
+.hero{min-height:218px;border:1px solid #ffbd4a66;border-radius:28px;padding:clamp(23px,4vw,36px);background:radial-gradient(ellipse at 82% 78%,#f3a62b30 0%,transparent 34%),radial-gradient(ellipse at 8% 5%,#ffffff14,transparent 42%),linear-gradient(118deg,#2b3339 0%,#1a242c 48%,#111a22 100%);color:#fff;box-shadow:0 22px 60px #0005,inset 0 1px #ffffff16}
+.hero:after{width:250px;height:250px;right:-70px;bottom:-170px;border-color:#ffbd4a55;box-shadow:0 0 0 22px #ffbd4a0c,0 0 0 46px #ffbd4a08,0 0 90px #ff9f1c20}
+.hero:before{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 25%,#ffffff09 48%,transparent 70%);transform:translateX(-110%);animation:heroSweep 9s ease-in-out infinite;pointer-events:none}
+@keyframes heroSweep{0%,62%,100%{transform:translateX(-110%)}78%{transform:translateX(110%)}}
+.heroText{max-width:62%}
+.hero h2{font-size:clamp(31px,4vw,43px);line-height:1.02;letter-spacing:-1.8px;color:#fff;margin:13px 0}
+.hero p{font-size:12px;color:#c5d0d9;font-weight:500;line-height:1.6}
+.hero .eyebrow.dark{color:#ffc45b}
+.heroMachine{font-size:clamp(78px,11vw,112px);filter:drop-shadow(0 18px 14px #0009);animation:heroMachineDrift 5.5s ease-in-out infinite}
+@keyframes heroMachineDrift{0%,100%{transform:translateY(0) rotate(-10deg) scale(1)}50%{transform:translateY(-9px) rotate(-6deg) scale(1.035)}}
+.heroTrust{display:flex;gap:8px;flex-wrap:wrap;margin-top:15px}
+.heroTrust span{font-size:9px;font-weight:800;color:#f8d99d;border:1px solid #ffbf4a40;background:#171f27a8;border-radius:30px;padding:7px 10px}
+.adminHero{min-height:188px;background:radial-gradient(ellipse at 85% 85%,#ff9f1c30,transparent 34%),linear-gradient(120deg,#242c33,#141d26 68%,#101820)}
+.adminHero h2{max-width:520px}
+.actionGrid{gap:11px;margin-top:16px}
+.actionGrid button,.ownerQuickActions button{background:linear-gradient(145deg,#1b2732,#131c25);border:1px solid #2d3d4a;border-radius:18px;padding:15px 12px;box-shadow:inset 0 1px #ffffff08;transition:transform .2s,border-color .2s,background .2s}
+.actionGrid button:active,.ownerQuickActions button:active{transform:scale(.965)}
+.actionGrid span,.ownerQuickActions span{color:#ffb43e}
+.actionGrid b,.ownerQuickActions b{font-size:12px}
+.actionGrid small,.ownerQuickActions small{color:#8f9eac}
+.statsGrid{gap:11px;margin:15px 0}
+.stat{position:relative;overflow:hidden;background:linear-gradient(145deg,#1b2732,#121b24);border:1px solid #2b3a47;border-radius:19px;padding:16px;box-shadow:inset 0 1px #ffffff08}
+.stat:after{content:"";position:absolute;width:78px;height:78px;right:-35px;top:-37px;border:1px solid #ffb43e20;border-radius:50%;box-shadow:0 0 0 12px #ffb43e08}
+.stat span{font-size:10px;color:#a4b1bd}
+.stat b{font-size:clamp(19px,2.5vw,25px);letter-spacing:-.7px}
+.goldText{color:#ffc15a}
+.ownerQuickActions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:15px 0 24px}
+.ownerQuickActions button{min-width:0;text-align:left;color:#f5f7fa;display:flex;flex-direction:column;align-items:flex-start;gap:5px}
+.ownerQuickActions span{font-size:21px;height:28px}
+.ownerQuickActions small{font-size:9px;line-height:1.3}
+.operatorIntro{position:relative;overflow:hidden;padding:23px;border:1px solid #42617a;border-radius:23px;background:radial-gradient(ellipse at 95% 10%,#4a9ddc2b,transparent 40%),linear-gradient(120deg,#1d3547,#142431 72%,#101b24);margin-bottom:15px;box-shadow:0 15px 40px #0004}
+.operatorIntro:after{content:"🚜";position:absolute;right:12px;bottom:-12px;font-size:74px;opacity:.24;filter:grayscale(.3);transform:rotate(-10deg)}
+.operatorIntro h2{font:700 25px 'Space Grotesk';letter-spacing:-1px;margin:13px 0 7px;max-width:75%}
+.operatorIntro p{font-size:11px;line-height:1.6;color:#b5c7d5;max-width:75%;margin:0}
+.operatorBadge{display:inline-flex;border:1px solid #70b8e65c;background:#16364b;color:#8ed0f7;padding:6px 9px;border-radius:30px;font-size:8px;font-weight:900;letter-spacing:1.5px}
+.machineGrid{grid-template-columns:repeat(auto-fit,minmax(min(100%,245px),1fr));gap:14px}
+.machineCard{background:linear-gradient(145deg,#1a2530,#111a22)}
+.machineVisual{height:138px;background:radial-gradient(ellipse at 50% 95%,#a46a202e,#18232c 64%);border-bottom:1px solid #ffffff0c}
+.machineVisual:before{width:205px;height:205px;border-color:#ffc15a35;box-shadow:0 0 0 18px #ffc15a09,0 0 0 40px #ffc15a05}
+.machineVisual>span{font-size:82px;filter:drop-shadow(0 17px 10px #000a)}
+.machineRateMain b{color:#ffc15a}
+.machineSearch{background:#121c25;border-color:#344654;height:53px;border-radius:17px}
+.machineSearch input{font-size:13px}
+.filterChips button{background:#16212b;border-color:#30404d;color:#aebbc6;padding:9px 14px}
+.filterChips button.selected{background:linear-gradient(135deg,#ffd27b,#ff9e1b);color:#1c160d;border-color:#ffb43e;box-shadow:0 6px 18px #ff9f1c25}
+.badge{border:1px solid #ffffff10}
+.btn{background:linear-gradient(135deg,#ffd27b,#ff9f1c);border-radius:15px;color:#1a140b;box-shadow:0 9px 24px #ff9f1c20,inset 0 1px #fff8}
+.btn.secondary{background:linear-gradient(145deg,#263542,#1a2630);border-color:#3a4b59;color:#e8edf2}
+.field input,.field select,.input{background:#101821;border-color:#31414f;border-radius:14px;height:49px}
+.bottomNav{z-index:35;bottom:calc(9px + env(safe-area-inset-bottom));width:calc(100% - 20px);max-width:650px;padding:9px 8px calc(9px + env(safe-area-inset-bottom));border:1px solid #ffffff18;border-radius:23px;background:#111a22ed;box-shadow:0 18px 55px #000b;backdrop-filter:blur(22px)}
+.bottomNav button{border-radius:15px;padding:7px 3px;gap:5px;transition:background .2s,color .2s,transform .2s}
+.bottomNav button span{font-size:21px}
+.bottomNav button small{font-size:9px;letter-spacing:.15px}
+.bottomNav button.active{background:linear-gradient(145deg,#ffbf4c22,#ff9f1c0b);color:#ffc15a}
+.bottomNav button.active span{transform:translateY(-1px) scale(1.08)}
+.emptyBox{background:linear-gradient(145deg,#17222c,#111922);border-color:#344655;border-radius:22px}
+.sheet{background:linear-gradient(145deg,#1b2732,#111a22);border-color:#354654;box-shadow:0 -24px 90px #000b}
+.authPage{position:relative;isolation:isolate;overflow:hidden;background:radial-gradient(ellipse at 12% 10%,#ff9f1c2b,transparent 33%),radial-gradient(ellipse at 90% 85%,#377aa52b,transparent 36%),linear-gradient(145deg,#101820,#080c11);padding:28px}
+.authPage:before,.authPage:after{content:"";position:absolute;z-index:-1;border:1px solid #ffbd4a22;border-radius:50%;width:min(90vw,650px);aspect-ratio:1;pointer-events:none}
+.authPage:before{right:-35%;top:-45%;box-shadow:0 0 0 35px #ffbd4a07,0 0 0 75px #ffbd4a04}
+.authPage:after{left:-45%;bottom:-60%;border-color:#66b9e51e;box-shadow:0 0 0 35px #66b9e507,0 0 0 75px #66b9e504}
+.authCard{width:min(100%,460px);padding:clamp(25px,4vw,38px);border:1px solid #ffffff20;border-radius:30px;background:linear-gradient(145deg,#1c2a35f5,#111a23f5);box-shadow:0 35px 110px #000b,inset 0 1px #ffffff10;backdrop-filter:blur(24px)}
+.authCard h1{font-size:clamp(30px,6vw,38px);letter-spacing:-1.5px}
+.authCard p{font-size:13px;color:#aebdca}
+.brandMark{background:linear-gradient(145deg,#ffd77c,#ff9812);border:1px solid #fff5;box-shadow:0 12px 35px #ff9f1c3b}
+.phoneInput,.otpInput{background:#101922;border-color:#3b4b59;border-radius:15px}
+.authFoot{color:#81909e}
+.profileAvatar{background:linear-gradient(145deg,#ffd27b,#ff9f1c);color:#21170a;box-shadow:0 8px 24px #ff9f1c2a}
+.toasts{top:calc(88px + env(safe-area-inset-top))}
+.compareDock{background:#18232cF5;border-color:#a77a38}
+.fleetHeading{margin-top:28px}
+.fleetHeading h2{font-size:23px}
+.fleetCount{background:linear-gradient(145deg,#2d3c48,#15212a);border-color:#536270;color:#ffc15a}
+.savedSites button{background:#1a2833;border-color:#3b4d5b}
+.siteSaveRow button{background:#332617;border-color:#9a6c2b;color:#ffd07a}
+@media(min-width:760px){
+  .appShell{padding-bottom:24px}
+  .topbar{margin-left:88px;padding-left:clamp(26px,4vw,70px);padding-right:clamp(26px,4vw,70px)}
+  .pageHead{margin-left:88px;padding-left:clamp(26px,4vw,70px);padding-right:clamp(26px,4vw,70px)}
+  .content{margin-left:88px;padding:0 clamp(26px,4vw,70px) 48px;max-width:none}
+  .content>*{max-width:1320px;margin-left:auto;margin-right:auto}
+  .bottomNav{left:0;top:0;bottom:0;transform:none;width:88px;max-width:none;height:100dvh;border-radius:0;border:0;border-right:1px solid #ffffff16;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px;padding:22px 8px;background:#0e171fF5;box-shadow:12px 0 45px #0004}
+  .bottomNav button{flex:0 0 68px;width:70px;max-width:70px;border-radius:17px;justify-content:center;gap:7px}
+  .bottomNav button span{font-size:23px}
+  .bottomNav button small{font-size:9px}
+  .machineGrid{grid-template-columns:repeat(auto-fit,minmax(245px,1fr))}
+  .customerHome .hero{min-height:260px}
+}
+@media(min-width:1100px){
+  .content{padding-left:clamp(35px,5vw,90px);padding-right:clamp(35px,5vw,90px)}
+  .pageHead h1{font-size:38px}
+  .statsGrid{gap:15px}
+  .ownerQuickActions{max-width:900px}
+}
+@media(max-width:520px){
+  .hero{min-height:200px;padding:21px}
+  .heroText{max-width:68%}
+  .hero h2{font-size:30px}
+  .heroMachine{font-size:68px;margin-right:-6px}
+  .ownerQuickActions{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ownerQuickActions button{min-height:94px}
+  .operatorIntro h2{font-size:22px}
+  .operatorIntro:after{font-size:58px}
+  .machineGrid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .premiumMachineCard{padding:10px}
+  .machineVisual{height:98px;margin:-10px -10px 11px}
+  .machineVisual>span{font-size:62px}
+  .machineRateMain b{font-size:16px}
+  .machineCard h3{font-size:12px}
+  .pageHead h1{font-size:27px}
+  .content{padding-left:13px;padding-right:13px}
+  .pageHead{padding-left:15px;padding-right:15px}
+}
+@media(max-width:360px){
+  .machineGrid{grid-template-columns:1fr}
+  .actionGrid{grid-template-columns:1fr}
+  .actionGrid button{display:grid;grid-template-columns:34px 1fr;column-gap:9px;align-items:center}
+  .actionGrid span{grid-row:span 2;margin:0}
+}
+@media(prefers-reduced-motion:reduce){
+  .hero:before,.heroMachine,.machineVisual>span{animation:none!important}
+}
