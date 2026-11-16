@@ -33,6 +33,7 @@ export default function PhaseTwoWorkspace({ tab, me, say, data, refresh, onNavig
   const [attendance, setAttendance] = useState([]);
   const [breaks, setBreaks] = useState([]);
   const [incentives, setIncentives] = useState([]);
+  const [payrollRows, setPayrollRows] = useState([]);
   const [maintenance, setMaintenance] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [coupons, setCoupons] = useState([]);
@@ -83,13 +84,14 @@ export default function PhaseTwoWorkspace({ tab, me, say, data, refresh, onNavig
         setCoupons(c.data || []); setReferrals(r.data || []);
       }
       if (tab === "attendance") {
-        const [a, b, i] = await Promise.all([
+        const [a, b, i, p] = await Promise.all([
           supabase.from("driver_attendance").select("*").gte("attendance_date", monthStart()).order("attendance_date", { ascending: false }),
           supabase.from("operator_breaks").select("*").order("started_at", { ascending: false }).limit(40),
-          supabase.from("operator_incentives").select("*").order("period_month", { ascending: false })
+          supabase.from("operator_incentives").select("*").order("period_month", { ascending: false }),
+          supabase.from("operator_payroll").select("*").order("period_month", { ascending: false })
         ]);
-        if (a.error) throw a.error; if (b.error) throw b.error; if (i.error) throw i.error;
-        setAttendance(a.data || []); setBreaks(b.data || []); setIncentives(i.data || []);
+        if (a.error) throw a.error; if (b.error) throw b.error; if (i.error) throw i.error; if (p.error) throw p.error;
+        setAttendance(a.data || []); setBreaks(b.data || []); setIncentives(i.data || []); setPayrollRows(p.data || []);
       }
       if (tab === "service") {
         const [m, e] = await Promise.all([
@@ -100,12 +102,13 @@ export default function PhaseTwoWorkspace({ tab, me, say, data, refresh, onNavig
         setMaintenance(m.data || []); setExpenses(e.data || []);
       }
       if (tab === "payroll") {
-        const [a, i] = await Promise.all([
+        const [a, i, p] = await Promise.all([
           supabase.from("driver_attendance").select("*,profiles(name,phone,daily_wage)").gte("attendance_date", monthStart()).order("attendance_date", { ascending: false }),
-          supabase.from("operator_incentives").select("*,profiles(name,phone)").order("period_month", { ascending: false })
+          supabase.from("operator_incentives").select("*,profiles(name,phone)").order("period_month", { ascending: false }),
+          supabase.from("operator_payroll").select("*,profiles(name,phone,daily_wage)").order("period_month", { ascending: false })
         ]);
-        if (a.error) throw a.error; if (i.error) throw i.error;
-        setAttendance(a.data || []); setIncentives(i.data || []);
+        if (a.error) throw a.error; if (i.error) throw i.error; if (p.error) throw p.error;
+        setAttendance(a.data || []); setIncentives(i.data || []); setPayrollRows(p.data || []);
       }
     } catch (error) {
       say(error.message || "Could not load this section.", "error");
@@ -230,6 +233,23 @@ export default function PhaseTwoWorkspace({ tab, me, say, data, refresh, onNavig
     const { error } = await supabase.from("operator_incentives").insert({ ...newIncentive, amount: Number(newIncentive.amount), period_month: monthStart(), created_by: me.id });
     if (error) return say(error.message, "error");
     setNewIncentive({ driver_id: "", amount: "", reason: "" }); say("Operator incentive added.", "success"); loadWorkspace();
+  };
+  const generatePayroll = async (driver) => {
+    const period = new Date(new Date().getFullYear(),new Date().getMonth(),1).toLocaleDateString("en-CA");
+    const existing = payrollRows.find(p=>p.driver_id===driver.id&&p.period_month===period);
+    if (existing?.status==="paid") return say("This month's salary is already marked paid.", "error");
+    const rows = attendance.filter(a=>a.driver_id===driver.id);
+    const days = rows.reduce((sum,a)=>sum+(a.status==="present"?1:a.status==="half_day"?0.5:0),0);
+    const base = Math.round(days*Number(driver.daily_wage||0));
+    const incentive = incentives.filter(i=>i.driver_id===driver.id&&i.period_month===period).reduce((sum,i)=>sum+Number(i.amount),0);
+    const { error } = await supabase.from("operator_payroll").upsert({driver_id:driver.id,period_month:period,attendance_days:days,base_amount:base,incentive_amount:incentive,total_amount:Math.max(0,base+incentive),status:"pending",paid_at:null,paid_by:null},{onConflict:"driver_id,period_month"});
+    if (error) return say(error.message,"error");
+    say("Salary calculated and saved.", "success"); loadWorkspace();
+  };
+  const markSalaryPaid = async (row) => {
+    const { error } = await supabase.from("operator_payroll").update({status:"paid",paid_at:new Date().toISOString(),paid_by:me.id}).eq("id",row.id);
+    if (error) return say(error.message,"error");
+    say("Salary marked as paid.", "success"); loadWorkspace();
   };
   const markAttendance = async (driverId, status) => {
     const { error } = await supabase.from("driver_attendance").upsert({ driver_id: driverId, attendance_date: today(), status, marked_by: me.id }, { onConflict: "driver_id,attendance_date" });
