@@ -7,6 +7,9 @@ A role-based Next.js PWA for customers, machine operators and the rental owner. 
 - Customer: phone OTP, three-step monthly/hourly/daily booking wizard, server-validated rate estimate, pending cancellation, active-job map with live timer, live notifications, logbook, payment submission, print-to-PDF invoice.
 - Driver: assigned duties, work timer that restores after reload, GPS updates while active, screen wake lock where supported, diesel/repair entries with camera/gallery proof.
 - Admin: booking approval/rejection and driver assignment, fleet/rate management, payment verification, monthly revenue/expense summary, per-machine totals, CSV export, team roles, attendance and wage estimates.
+- Phase 2 customer tools: database-synced machine favourites, pending/confirmed booking change requests with owner approval, coupon application with server-calculated discounts and redemption limits, referral invitations/reward tracking, completed-booking reviews with owner moderation, and support tickets with live threaded replies.
+- Phase 2 operator tools: attendance check-in/out, active-duty breaks, incentive history and monthly salary records with owner payout status.
+- Phase 2 owner tools: support inbox, booking-change approvals, review moderation, coupon publishing, referral qualification/rewarding, maintenance calendar, machine expense ledger, attendance register, incentive controls and salary calculation/payout tracking.
 - PWA: install manifest with 192px/512px icons, service worker, mobile-first shell, animated splash/onboarding, bottom sheets, animated counters, confetti, skeleton loading and Android install prompt.
 - Backend: role-aware RLS, private helper schema, booking/payment notifications, Realtime publication and private photo-proof bucket.
 
@@ -33,7 +36,7 @@ Never add a Supabase service-role/secret key to a NEXT_PUBLIC variable or the br
 
 ## Supabase setup / owner bootstrap
 
-The schema and follow-up hardening are recorded in `supabase/migrations/202611160001_initial_schema.sql` and `supabase/migrations/202611160002_policy_hardening.sql` and `supabase/migrations/202611160003_booking_security_hardening.sql` and `supabase/migrations/202611160004_photo_proof_heic.sql` and `supabase/migrations/202611160005_diesel_log_realtime.sql`. All five were applied directly to project `efxsauiaxwnloqgnlxuj`.
+The schema and follow-up hardening are recorded in `supabase/migrations/202611160001_initial_schema.sql`, `202611160002_policy_hardening.sql`, `202611160003_booking_security_hardening.sql`, `202611160004_photo_proof_heic.sql`, `202611160005_diesel_log_realtime.sql`, `20261116152844_phase_2_customer_operator_owner_modules.sql`, `20261116153132_phase_2_coupon_and_review_integrity.sql`, `20261116153149_phase_2_operator_payroll.sql`, and `20261116153312_phase_2_rls_performance_hardening.sql`. The Phase 2 migrations are applied to project `efxsauiaxwnloqgnlxuj`.
 
 1. In Supabase Authentication → Providers → Phone, enable phone login and configure an SMS provider (Twilio or MSG91/another supported provider). Without this, real customer OTP delivery will not work.
 2. For controlled development only, configure Supabase test OTP numbers/codes; do not use a public hardcoded OTP in production.
@@ -60,7 +63,7 @@ Open http://localhost:3000. The browser geolocation API requires HTTPS in produc
 
 ## Known operational limits / required owner inputs
 
-- **SMS OTP:** provider credentials and phone-auth enablement must be configured in Supabase by the account owner.
+- **SMS OTP:** the app now uses real Supabase phone OTP; configure and enable a supported SMS provider in Supabase before customers can sign in. Demo-code authentication has been removed.
 - **UPI:** add the owner's correct UPI ID to Vercel as `NEXT_PUBLIC_UPI_ID`. The app records a payment submission; the owner manually verifies it. It is not an automatic payment gateway.
 - **GPS:** browser geolocation and screen wake lock are best-effort. Mobile browsers may pause GPS when backgrounded or the device is locked. Continuous background tracking needs a native Android/iOS wrapper and platform permissions.
 - **Monthly billing:** the schema supports a month count; the fixed monthly rate is multiplied by that count (partial months are not prorated).\n- **GST:** 18% is currently an estimate in the UI. Confirm the applicable GST rate, GSTIN, invoice numbering and invoice legal fields with the owner's CA before issuing tax invoices.
