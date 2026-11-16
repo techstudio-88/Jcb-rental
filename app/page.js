@@ -158,6 +158,7 @@ export default function Home() {
     .on("postgres_changes",{event:"*",schema:"public",table:"bookings"},refresh)
     .on("postgres_changes",{event:"*",schema:"public",table:"payments"},refresh)
     .on("postgres_changes",{event:"*",schema:"public",table:"logbook"},refresh)
+    .on("postgres_changes",{event:"*",schema:"public",table:"diesel_logs"},refresh)
     .on("postgres_changes",{event:"*",schema:"public",table:"notifications",filter:"user_id=eq."+me.id},refresh)
     .subscribe();
     return()=>supabase.removeChannel(channel);
