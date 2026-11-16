@@ -4,7 +4,8 @@ import dynamic from "next/dynamic";
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { money, hoursBetween, totalHours, estimateBooking, calculateBill, upiPaymentLink, WORK_TYPES } from "@/lib/domain";
-import { initializeNativeExperience, tapFeedback, shareContent } from "@/lib/native";
+import { initializeNativeExperience, tapFeedback, shareContent, subscribeNetwork } from "@/lib/native";
+import { App } from "@capacitor/app";
 
 const LiveMap = dynamic(() => import("@/components/LiveMap"), { ssr: false, loading: () => <div className="skeleton mapSkeleton"/> });
 const tabsByRole = {
@@ -122,7 +123,7 @@ export default function Home() {
     return ()=>{clearTimeout(t);window.removeEventListener("beforeinstallprompt",installHandler);};
   },[]);
   useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t);},[]);
-  useEffect(()=>{let alive=true;initializeNativeExperience().then(info=>{if(alive){setNativeInfo(info);if(info.network)setOnline(info.network.connected);}});const onOnline=()=>setOnline(true),onOffline=()=>setOnline(false);window.addEventListener("online",onOnline);window.addEventListener("offline",onOffline);return()=>{alive=false;window.removeEventListener("online",onOnline);window.removeEventListener("offline",onOffline);};},[]);
+  useEffect(()=>{let alive=true,networkHandle=null;initializeNativeExperience().then(info=>{if(alive){setNativeInfo(info);if(info.network)setOnline(info.network.connected);}});const onOnline=()=>setOnline(true),onOffline=()=>setOnline(false);window.addEventListener("online",onOnline);window.addEventListener("offline",onOffline);subscribeNetwork(status=>setOnline(status.connected)).then(handle=>{networkHandle=handle;});return()=>{alive=false;networkHandle?.remove?.();window.removeEventListener("online",onOnline);window.removeEventListener("offline",onOffline);};},[]);
   const loadProfile = useCallback(async (s) => {
     if (!s?.user) { setMe(null); setSession(null); setDemoMode(false); setBooting(false); return; }
     setDemoMode(false);
@@ -177,6 +178,8 @@ export default function Home() {
     return()=>supabase.removeChannel(channel);
   },[me?.id,refresh]);
   useEffect(()=>{setTab(me?.role==="admin"?"home":me?.role==="driver"?"duty":"home");},[me?.role]);
+  useEffect(()=>{if(!nativeInfo.native)return;let handle;App.addListener("backButton",()=>{if(expenseOpen)setExpenseOpen(null);else if(machineOpen)setMachineOpen(false);else if(selected)setSelected(null);else if(bookingOpen)setBookingOpen(false);else if(noticeOpen)setNoticeOpen(false);else if(tab!=="home")setTab("home");else App.exitApp();}).then(x=>{handle=x;});return()=>{handle?.remove?.();};},[nativeInfo.native,expenseOpen,machineOpen,selected,bookingOpen,noticeOpen,tab]);
+
 
   const sendOtp=async()=>{
     if(phone.length!==10)return say("Enter a valid 10-digit mobile number.","error");
