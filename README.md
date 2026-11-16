@@ -86,3 +86,30 @@ Open http://localhost:3000. The browser geolocation API requires HTTPS in produc
 ## Security notes
 
 All application tables have RLS enabled. Private proof images are stored in a non-public bucket. The service-role key is never shipped to the client. Role checks are performed from database profiles through non-exposed helper functions; customers can only cancel their own pending bookings, and drivers are restricted to their assigned work.
+
+## Native Android / iOS packaging
+
+The app now has a Capacitor 7 shell and a static Next.js export (`out/`) for native packaging.
+
+```bash
+npm install
+npm run build
+npx cap add android       # first time only
+npx cap add ios           # first time only, on macOS
+npx cap sync
+npm run cap:android
+npm run cap:ios
+```
+
+- Native package ID: `com.techstudio.jcbrental` (confirm/change before the first store submission; changing it later creates a different store app).
+- Native integrations: device status bar, keyboard resize, splash screen, hardware back navigation, haptic taps, native share sheet, device/platform detection, network connectivity, deep-link event bridge, native geolocation permission/watch, and native preferences helper.
+- Android/iOS debug build and unsigned release artifacts are built by `.github/workflows/native-build.yml`. The Android AAB and iOS archive are unsigned; they are not yet store-submittable.
+- The owner must provide Play App Signing / upload-key credentials, Apple Developer team membership and signing certificates/profiles, final app icon/screenshots, privacy-policy URL, support contact, age/content rating answers, and store listing copy before publishing.
+- Real OTP still requires a configured SMS provider. The current temporary demo login must be removed before public release. Demo roles are local and read-only; they are not real accounts.
+- Background GPS is not enabled. Tracking is foreground/active-job only; continuous background tracking needs additional platform-specific background-location implementation and disclosure.
+- Push notifications require Firebase/APNs configuration and server-side delivery credentials; they are not enabled by this packaging foundation.
+- Complete real-device QA is required for OTP, permissions, camera/photo proof, map tracking, offline recovery, payments, and invoices on current Android and iOS devices.
+
+## Added owner analytics
+
+The owner Insights tab summarizes six-month verified revenue, booking completion, average booking value, outstanding receivables, fleet utilization, repeat customers, rental-plan mix, payment channels, top customers, operator hours/performance, and highest-revenue machine. Booking lists can also be exported to CSV.
