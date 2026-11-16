@@ -170,11 +170,7 @@ export default function Home() {
       };
       navigator.serviceWorker.addEventListener("controllerchange",swControllerHandler);
     }
-    try {
-      const savedDemo=localStorage.getItem("jcb_demo_session");
-      if(savedDemo){setMe(JSON.parse(savedDemo));setDemoMode(true);setBooting(false);}
-      setIntro(!localStorage.getItem("jcb_seen"));
-    } catch {}
+    try { localStorage.removeItem("jcb_demo_session"); setIntro(!localStorage.getItem("jcb_seen")); } catch {}
     return ()=>{clearTimeout(t);window.removeEventListener("beforeinstallprompt",installHandler);if(swControllerHandler&&"serviceWorker" in navigator)navigator.serviceWorker.removeEventListener("controllerchange",swControllerHandler);};
   },[]);
   useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t);},[]);
@@ -199,7 +195,6 @@ export default function Home() {
   },[]);
   useEffect(()=>{
     if(!isSupabaseConfigured){setBooting(false);return;}
-    try { if(localStorage.getItem("jcb_demo_session")){setBooting(false);return;} } catch {}
     supabase.auth.getSession().then(({data})=>loadProfile(data.session));
     const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,s)=>{setTimeout(()=>loadProfile(s),0);});
     return ()=>subscription.unsubscribe();
@@ -279,18 +274,14 @@ export default function Home() {
 
   const sendOtp=async()=>{
     if(phone.length!==10)return say("Enter a valid 10-digit mobile number.","error");
-    // TEMPORARY DEMO ACCESS: bypasses SMS only; it never creates or authenticates a Supabase user.
-    setDemoMode(true);
-    setOtpSent(true);
-    say("Temporary demo mode: enter any 4–6 digit code.");
+    setBusy(true);
+    const {error}=await supabase.auth.signInWithOtp({phone:"+91"+phone});
+    setBusy(false);
+    if(error)return say(error.message,"error");
+    setDemoMode(false);setOtpSent(true);
+    say("Verification code sent to your mobile number.","success");
   };
   const verifyOtp=async()=>{
-    if(demoMode){
-      if(!/^\d{4,6}$/.test(otp))return say("Enter any 4–6 digit demo code.","error");
-      const demoUser={id:"demo-"+demoRole,phone:"+91"+phone,role:demoRole,name:demoRole==="admin"?"Demo Owner":demoRole==="driver"?"Demo Operator":"Demo Customer",daily_wage:800,isDemo:true};
-      try { localStorage.setItem("jcb_demo_session",JSON.stringify(demoUser)); } catch {}
-      setMe(demoUser);setSession(null);setBooting(false);say("Demo sign-in successful. Demo changes are not saved.");return;
-    }
     if(otp.length<4)return say("Enter the OTP you received.","error");
     setBusy(true);const {data:authData,error}=await supabase.auth.verifyOtp({phone:"+91"+phone,token:otp,type:"sms"});setBusy(false);
     if(error)return say(error.message,"error");
@@ -486,9 +477,9 @@ export default function Home() {
   if(booting)return <main className="boot"><div className="loader"/></main>;
   if(!me&&intro)return <main className="authPage"><div className="authCard introCard"><div className="brandMark">{introSlides[slide].icon}</div><div className="eyebrow">WELCOME TO JCB RENTAL</div><h1>{introSlides[slide].title}</h1><p>{introSlides[slide].body}</p><div className="stepDots">{introSlides.map((x,i)=><i key={i} className={i===slide?"on":""}/>)}</div><Button onClick={()=>{if(slide<introSlides.length-1)setSlide(slide+1);else{localStorage.setItem("jcb_seen","1");setIntro(false);}}}>{slide<introSlides.length-1?"Next →":"Get started →"}</Button><button className="textButton" onClick={()=>{localStorage.setItem("jcb_seen","1");setIntro(false);}}>Skip introduction</button></div><Toasts items={toasts}/></main>;
   if(!me)return <main className="authPage"><AnimatePresence>{splash&&<Splash/>}</AnimatePresence>
-    <div className="authCard"><div className="brandMark">🚜</div><div className="eyebrow">JCB RENTAL SERVICE</div><h1>{otpSent?"Verify your number":"Work starts here."}</h1><p>{otpSent?"Enter any 4–6 digit demo code for temporary access.":"Book machines, manage work and keep every bill in one place."}</p>
-      {!otpSent?<><div className="phoneInput"><span>+91</span><input autoComplete="tel-national" inputMode="numeric" maxLength={10} placeholder="10-digit mobile number" value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,""))}/></div><label className="field"><span>Choose demo app</span><select value={demoRole} onChange={e=>setDemoRole(e.target.value)}><option value="customer">Customer app</option><option value="driver">Driver app</option><option value="admin">Owner / Admin dashboard</option></select></label><Button disabled={busy} onClick={sendOtp}>{busy?"Sending…":"Continue to demo →"}</Button></>:<><input className="otpInput" autoComplete="one-time-code" inputMode="numeric" maxLength={6} placeholder="• • • • • •" value={otp} onChange={e=>setOtp(e.target.value.replace(/\D/g,""))}/><Button disabled={busy} onClick={verifyOtp}>{busy?"Verifying…":"Verify & Continue →"}</Button><button className="textButton" onClick={()=>{setOtpSent(false);setOtp("");}}>Change mobile number</button></>}
-      <div className="authFoot">{demoMode?"Temporary demo access · any 4–6 digit code works · no SMS is sent":"Temporary demo sign-in · no SMS provider needed"}</div>
+    <div className="authCard"><div className="brandMark">🚜</div><div className="eyebrow">JCB RENTAL SERVICE</div><h1>{otpSent?"Verify your number":"Work starts here."}</h1><p>{otpSent?"Enter the 6-digit verification code sent to your phone.":"Book machines, manage work and keep every bill in one place."}</p>
+      {!otpSent?<><div className="phoneInput"><span>+91</span><input autoComplete="tel-national" inputMode="numeric" maxLength={10} placeholder="10-digit mobile number" value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,""))}/></div><Button disabled={busy} onClick={sendOtp}>{busy?"Sending…":"Continue to demo →"}</Button></>:<><input className="otpInput" autoComplete="one-time-code" inputMode="numeric" maxLength={6} placeholder="• • • • • •" value={otp} onChange={e=>setOtp(e.target.value.replace(/\D/g,""))}/><Button disabled={busy} onClick={verifyOtp}>{busy?"Verifying…":"Verify & Continue →"}</Button><button className="textButton" onClick={()=>{setOtpSent(false);setOtp("");}}>Change mobile number</button></>}
+      <div className="authFoot">OTP sign-in is secured by Supabase. SMS delivery requires an active provider configuration.</div>
     </div><Toasts items={toasts}/></main>;
   if(!me.name)return <main className="authPage"><div className="authCard"><div className="brandMark">👋</div><div className="eyebrow">ONE LAST THING</div><h1>What should we call you?</h1><p>Your name will appear on your bookings and profile.</p><input className="input" placeholder="Full name" value={name} onChange={e=>setName(e.target.value)}/><Button onClick={saveName}>Continue →</Button></div><Toasts items={toasts}/></main>;
 
