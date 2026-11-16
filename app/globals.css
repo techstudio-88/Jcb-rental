@@ -28,3 +28,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .appShell{padding-bottom:calc(88px + var(--safe-bottom))}
 @media(min-width:700px){.appShell{max-width:760px;border-radius:0 0 24px 24px;box-shadow:0 25px 90px #0008}.bottomNav{width:min(100%,760px);border-radius:18px 18px 0 0}.content{padding-left:22px;padding-right:22px}.topbar{padding-left:24px;padding-right:24px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+
+.insightBars{height:190px;display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;align-items:end;padding:20px 4px 0}
+.insightBar{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:7px;min-width:0}
+.insightBarTrack{height:112px;width:100%;max-width:35px;border-radius:10px;background:#272d35;display:flex;align-items:flex-end;overflow:hidden}
+.insightBarTrack i{display:block;width:100%;border-radius:8px 8px 3px 3px;background:linear-gradient(180deg,#ffd166,#e98b12);min-height:3px;transition:height .5s cubic-bezier(.2,.8,.2,1)}
+.insightBar b{font-size:9px;white-space:nowrap;color:#f5d58d}.insightBar small{font-size:10px;color:var(--muted)}
+.insightRow{display:flex;align-items:center;gap:11px;padding:12px 0;border-bottom:1px solid #ffffff0d}.insightRow:last-child{border:0}.insightRank{width:27px;height:27px;display:grid;place-items:center;border-radius:9px;background:#30291c;color:var(--yellow);font-size:11px;font-weight:900}.insightRow div{min-width:0;flex:1}.insightRow b,.insightRow small{display:block}.insightRow b{font-size:12px}.insightRow small{font-size:10px;color:var(--muted);margin-top:3px}.insightRow strong{font-size:12px;color:var(--yellow);white-space:nowrap}
+.fleetMeter{height:10px;background:#303640;border-radius:20px;overflow:hidden;margin:16px 0 8px}.fleetMeter i{height:100%;display:block;border-radius:20px;background:linear-gradient(90deg,#ffd166,#e98b12);transition:width .5s ease}
