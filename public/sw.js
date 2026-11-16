@@ -1,5 +1,5 @@
 const CACHE = "jcb-rental-shell-v2";
-const SHELL = ["/", "/offline", "/manifest.json"];
+const SHELL = ["/", "/offline/", "/manifest.json"];
 self.addEventListener("install", event => {
   event.waitUntil((async()=>{const cache=await caches.open(CACHE);await cache.addAll(SHELL);await self.skipWaiting();})());
 });
@@ -12,7 +12,7 @@ self.addEventListener("fetch", event => {
   const url=new URL(req.url);
   if(url.origin!==self.location.origin) return;
   if(req.mode==="navigate"){
-    event.respondWith((async()=>{try{const response=await fetch(req);if(response.ok){const cache=await caches.open(CACHE);cache.put(req,response.clone());}return response;}catch{ return (await caches.match(req)) || (await caches.match("/offline")) || Response.error();}})());
+    event.respondWith((async()=>{try{const response=await fetch(req);if(response.ok){const cache=await caches.open(CACHE);cache.put(req,response.clone());}return response;}catch{ return (await caches.match(req)) || (await caches.match("/offline/")) || Response.error();}})());
     return;
   }
   if(req.destination==="image"||req.destination==="font"||req.destination==="style"||req.destination==="script"){
