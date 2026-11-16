@@ -38,6 +38,8 @@ export default function PhaseTwoWorkspace({ tab, me, say, data, refresh, onNavig
   const [coupons, setCoupons] = useState([]);
   const [referrals, setReferrals] = useState([]);
   const [referralPhone, setReferralPhone] = useState("");
+  const [couponBooking, setCouponBooking] = useState("");
+  const [selectedCoupon, setSelectedCoupon] = useState("");
   const [newCoupon, setNewCoupon] = useState({ code: "", description: "", discount_type: "percent", discount_value: "10", expires_at: "" });
   const [newMaintenance, setNewMaintenance] = useState({ machine_id: "", maintenance_type: "service", description: "", due_date: "", cost: "0" });
   const [newExpense, setNewExpense] = useState({ machine_id: "", category: "repair", amount: "", notes: "" });
@@ -62,7 +64,7 @@ export default function PhaseTwoWorkspace({ tab, me, say, data, refresh, onNavig
     try {
       if (tab === "support") await loadSupport();
       if (tab === "reviews") {
-        const { data: rows, error } = await supabase.from("booking_reviews").select("*,machines(model)").order("created_at", { ascending: false });
+        const { data: rows, error } = await supabase.from("booking_reviews").select("*,machines(model),profiles(name,phone)").order("created_at", { ascending: false });
         if (error) throw error;
         setReviews(rows || []);
       }
@@ -157,6 +159,11 @@ export default function PhaseTwoWorkspace({ tab, me, say, data, refresh, onNavig
     setActiveTicket({ ...activeTicket, status }); loadSupport(); say("Ticket status updated.");
   };
 
+  const moderateReview = async (row, visible) => {
+    const { error } = await supabase.from("booking_reviews").update({ is_visible: visible }).eq("id", row.id);
+    if (error) return say(error.message, "error");
+    say(visible ? "Review published." : "Review hidden."); loadWorkspace();
+  };
   const submitReview = async () => {
     const booking = completedBookings.find(b => b.id === reviewBooking);
     if (!booking) return say("Choose one of your completed bookings.", "error");
@@ -236,6 +243,26 @@ export default function PhaseTwoWorkspace({ tab, me, say, data, refresh, onNavig
     if (error) return say(error.message, "error");
     setNewCoupon({ code: "", description: "", discount_type: "percent", discount_value: "10", expires_at: "" }); say("Coupon published.", "success"); loadWorkspace();
   };
+  const applyCoupon = async () => {
+    const booking = myBookings.find(b => b.id === couponBooking && b.status === "pending");
+    const coupon = coupons.find(c => c.id === selectedCoupon);
+    if (!booking || !coupon) return say("Choose a pending booking and an active coupon.", "error");
+    const base = Number(booking.quoted_rate || 0);
+    if (base < Number(coupon.minimum_booking_amount || 0)) return say("This booking does not meet the coupon minimum.", "error");
+    let discount = coupon.discount_type === "percent" ? Math.round(base * Number(coupon.discount_value) / 100) : Number(coupon.discount_value);
+    if (coupon.maximum_discount) discount = Math.min(discount, Number(coupon.maximum_discount));
+    discount = Math.max(0, Math.min(base, discount));
+    if (!discount) return say("This coupon does not apply to this booking.", "error");
+    const { error } = await supabase.from("coupon_redemptions").insert({ coupon_id: coupon.id, user_id: me.id, booking_id: booking.id, discount_amount: discount });
+    if (error) return say(error.message, "error");
+    say("Coupon applied. Your booking bill has been updated.", "success"); setCouponBooking(""); setSelectedCoupon(""); refresh?.();
+  };
+  const updateReferral = async (row, status) => {
+    if (!isAdmin) return;
+    const { error } = await supabase.from("referrals").update({ status, qualified_at: status === "qualified" ? new Date().toISOString() : row.qualified_at, rewarded_at: status === "rewarded" ? new Date().toISOString() : row.rewarded_at }).eq("id", row.id);
+    if (error) return say(error.message, "error");
+    say("Referral status updated."); loadWorkspace();
+  };
   const createReferral = async () => {
     if (!/^\+?\d{10,13}$/.test(referralPhone.replace(/[\s-]/g, ""))) return say("Enter a valid phone number with country code if needed.", "error");
     const referral_code = "JCB-" + me.id.replace(/-/g, "").slice(0, 8).toUpperCase();
@@ -255,6 +282,8 @@ export default function PhaseTwoWorkspace({ tab, me, say, data, refresh, onNavig
       {activeTicket ? <><div className="phase2Messages">{messages.map(m=><div className={"phase2Message "+(m.sender_id===me.id?"mine":"")} key={m.id}><b>{m.profiles?.name || (m.sender_id===me.id?"You":"Support team")}</b><p>{m.message}</p><small>{new Date(m.created_at).toLocaleString("en-IN")}</small></div>)}</div><textarea className="input" rows={3} value={message} onChange={e=>setMessage(e.target.value)} placeholder="Write a reply…"/><button className="btn" onClick={sendMessage}>Send reply</button>{isAdmin&&<div className="buttonRow"><button className="btn secondary" onClick={()=>updateTicket("in_progress")}>Mark in progress</button><button className="btn secondary" onClick={()=>updateTicket("resolved")}>Resolve ticket</button><button className="btn secondary" onClick={()=>updateTicket("closed")}>Close</button></div>}</> : <EmptyState>Select a ticket to start.</EmptyState>}
     </Panel>
   </div>;
+
+  if (tab === "reviews" && isAdmin) return <Panel title="Review moderation" subtitle="Publish customer feedback after checking it.">{reviews.map(r=><article className="phase2Row" key={r.id}><div><b>{r.machines?.model || "Machine"} · {"★".repeat(r.rating)}</b><small>{r.profiles?.name || r.profiles?.phone || "Customer"} · {new Date(r.created_at).toLocaleDateString("en-IN")}</small><p>{r.comment || "No written feedback."}</p></div>{r.is_visible?<button className="btn secondary" onClick={()=>moderateReview(r,false)}>Hide</button>:<button className="btn" onClick={()=>moderateReview(r,true)}>Publish</button>}</article>)}{reviews.length===0&&<EmptyState>No customer reviews submitted yet.</EmptyState>}</Panel>;
 
   if (tab === "reviews") return <div className="phase2Grid">
     <Panel title="Rate your completed rental" subtitle="One verified review per completed booking. Reviews are published after owner moderation.">
@@ -334,7 +363,7 @@ export default function PhaseTwoWorkspace({ tab, me, say, data, refresh, onNavig
 
   if (tab === "offers") return <div className="phase2Grid">
     <Panel title="Publish a coupon" subtitle="Coupons are time-bound and have server-side redemption limits."><TextField label="Coupon code" value={newCoupon.code} onChange={e=>setNewCoupon(v=>({...v,code:e.target.value.toUpperCase()}))} placeholder="WELCOME10"/><TextField label="Description" value={newCoupon.description} onChange={e=>setNewCoupon(v=>({...v,description:e.target.value}))} placeholder="New customer offer"/><SelectField label="Discount type" value={newCoupon.discount_type} onChange={e=>setNewCoupon(v=>({...v,discount_type:e.target.value}))}><option value="percent">Percentage</option><option value="fixed">Fixed amount</option></SelectField><TextField label="Discount value" type="number" min="1" value={newCoupon.discount_value} onChange={e=>setNewCoupon(v=>({...v,discount_value:e.target.value}))}/><TextField label="Expiry (optional)" type="datetime-local" value={newCoupon.expires_at} onChange={e=>setNewCoupon(v=>({...v,expires_at:e.target.value?new Date(e.target.value).toISOString():""}))}/><button className="btn" onClick={createCoupon}>Publish coupon</button></Panel>
-    <Panel title="Active coupons">{coupons.map(c=><article className="phase2Coupon" key={c.id}><div><b>{c.code}</b><small>{c.description||"Offer"} · {c.expires_at?new Date(c.expires_at).toLocaleDateString("en-IN"):"No expiry"}</small></div><strong>{c.discount_type==="percent"?c.discount_value+"%":money(c.discount_value)} OFF</strong></article>)}{coupons.length===0&&<EmptyState>No coupons published.</EmptyState>}</Panel>
+    <Panel title="Active coupons">{coupons.map(c=><article className="phase2Coupon" key={c.id}><div><b>{c.code}</b><small>{c.description||"Offer"} · {c.expires_at?new Date(c.expires_at).toLocaleDateString("en-IN"):"No expiry"}</small></div><strong>{c.discount_type==="percent"?c.discount_value+"%":money(c.discount_value)} OFF</strong></article>)}{coupons.length===0&&<EmptyState>No coupons published.</EmptyState>}</Panel><Panel title="Referral invitations">{referrals.map(r=><article className="phase2Row" key={r.id}><div><b>{r.referred_phone}</b><small>{r.referral_code} · {r.status}</small></div><div className="buttonRow"><button className="btn secondary" onClick={()=>updateReferral(r,"qualified")}>Qualify</button><button className="btn" onClick={()=>updateReferral(r,"rewarded")}>Rewarded</button></div></article>)}{referrals.length===0&&<EmptyState>No referrals recorded.</EmptyState>}</Panel>
   </div>;
 
   return null;
