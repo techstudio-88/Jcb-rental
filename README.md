@@ -12,7 +12,7 @@ A role-based Next.js PWA for customers, machine operators and the rental owner. 
 
 ## Stack
 
-- Next.js 15.5.6 / React 19.1.0
+- Next.js 15.5.29 / React 19.1.2
 - Supabase JS 2.58.0
 - Framer Motion 12.23.24
 - React Leaflet 5.0.0 + Leaflet 1.9.4
@@ -33,7 +33,7 @@ Never add a Supabase service-role/secret key to a NEXT_PUBLIC variable or the br
 
 ## Supabase setup / owner bootstrap
 
-The schema is in `supabase/migrations/202611160001_initial_schema.sql` and has been applied directly to project `efxsauiaxwnloqgnlxuj`.
+The schema and follow-up hardening are recorded in `supabase/migrations/202611160001_initial_schema.sql` and `supabase/migrations/202611160002_policy_hardening.sql`. Both were applied directly to project `efxsauiaxwnloqgnlxuj`.
 
 1. In Supabase Authentication → Providers → Phone, enable phone login and configure an SMS provider (Twilio or MSG91/another supported provider). Without this, real customer OTP delivery will not work.
 2. For controlled development only, configure Supabase test OTP numbers/codes; do not use a public hardcoded OTP in production.
