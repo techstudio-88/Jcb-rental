@@ -37,3 +37,86 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{ou
 .insightBar b{font-size:9px;white-space:nowrap;color:#f5d58d}.insightBar small{font-size:10px;color:var(--muted)}
 .insightRow{display:flex;align-items:center;gap:11px;padding:12px 0;border-bottom:1px solid #ffffff0d}.insightRow:last-child{border:0}.insightRank{width:27px;height:27px;display:grid;place-items:center;border-radius:9px;background:#30291c;color:var(--yellow);font-size:11px;font-weight:900}.insightRow div{min-width:0;flex:1}.insightRow b,.insightRow small{display:block}.insightRow b{font-size:12px}.insightRow small{font-size:10px;color:var(--muted);margin-top:3px}.insightRow strong{font-size:12px;color:var(--yellow);white-space:nowrap}
 .fleetMeter{height:10px;background:#303640;border-radius:20px;overflow:hidden;margin:16px 0 8px}.fleetMeter i{height:100%;display:block;border-radius:20px;background:linear-gradient(90deg,#ffd166,#e98b12);transition:width .5s ease}
+
+
+/* Phase 01 — premium customer discovery and responsive native surfaces */
+.fleetHeading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:25px 3px 13px}
+.fleetHeading h2{font:700 21px 'Space Grotesk';letter-spacing:-.5px;margin:4px 0}
+.fleetHeading p{font-size:11px;color:var(--muted);margin:0}
+.fleetCount{display:grid;place-items:center;min-width:54px;height:54px;border:1px solid #6a5127;background:linear-gradient(145deg,#302718,#1b1e23);border-radius:17px;color:var(--yellow);font:700 19px 'Space Grotesk'}
+.fleetCount small{font:800 8px 'DM Sans';letter-spacing:1.4px;color:var(--muted);margin-top:-8px}
+.machineSearch{height:49px;display:flex;align-items:center;gap:10px;padding:0 14px;border:1px solid #343c46;border-radius:15px;background:#151a20;box-shadow:inset 0 1px #ffffff08}
+.machineSearch>span{font-size:23px;color:var(--yellow);line-height:1}
+.machineSearch input{width:100%;min-width:0;border:0;outline:0;background:transparent;color:var(--white);font-size:12px}
+.machineSearch input::placeholder{color:#77818d}
+.machineSearch button{border:0;background:#303741;color:#fff;width:26px;height:26px;border-radius:50%;font-size:18px}
+.fleetFilters{margin:11px 0 14px}
+.fleetFilters button{padding:9px 14px;font-size:10px}
+.premiumMachineCard{padding:12px;overflow:hidden;position:relative}
+.machineVisual{height:105px;margin:-12px -12px 13px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;background:radial-gradient(ellipse at 50% 90%,#6a481b 0%,#342819 35%,#20252c 78%)}
+.machineVisual:before{content:"";position:absolute;width:170px;height:170px;border:1px solid #ffbf4a20;border-radius:50%;box-shadow:0 0 0 18px #ffbf4a08,0 0 0 38px #ffbf4a06}
+.machineVisual>span{position:relative;z-index:1;font-size:68px;filter:drop-shadow(0 12px 8px #0009);transform:rotate(-8deg);animation:machineFloat 5s ease-in-out infinite}
+.machineActions{position:absolute;right:9px;top:9px;display:flex;gap:6px;z-index:2}
+.machineActions button{width:30px;height:30px;border:1px solid #ffffff22;border-radius:10px;background:#111923d9;color:#e9edf2;font-size:16px;backdrop-filter:blur(8px)}
+.machineActions button.isFavorite{color:#ff8292;background:#3a1e28}
+.machineActions button.isCompared{color:#17130b;background:var(--yellow);border-color:var(--yellow)}
+.machineType{font-size:8px;font-weight:900;letter-spacing:1.3px;color:#aeb6c0}
+.machineRateMain{padding:10px 0 6px;margin-top:5px;border-top:1px solid #ffffff0c}
+.machineRateMain small{display:block;font-size:8px;font-weight:800;letter-spacing:1.2px;color:var(--muted);margin-bottom:4px}
+.machineRateMain b{font:700 19px 'Space Grotesk';color:var(--yellow)}
+.machineRateMain i{font:500 10px 'DM Sans';font-style:normal;color:var(--muted)}
+.premiumMachineCard .btn{margin-top:12px}
+.compareDock{position:fixed;z-index:24;left:50%;bottom:calc(82px + env(safe-area-inset-bottom));transform:translateX(-50%);width:min(calc(100% - 26px),720px);display:flex;align-items:center;gap:12px;padding:11px 13px;border:1px solid #80602b;border-radius:17px;background:#211d16f5;box-shadow:0 12px 35px #0009;backdrop-filter:blur(18px)}
+.compareDock>div{flex:1;min-width:0}
+.compareDock b,.compareDock small{display:block}
+.compareDock b{font-size:11px;color:#fff}
+.compareDock small{font-size:9px;color:#bca77e;margin-top:3px}
+.compareDock .btn{margin:0;white-space:nowrap}
+.compareClear{border:0;background:#3a3020;color:#f5d69b;width:27px;height:27px;border-radius:9px;font-size:17px}
+.compareOverlay{z-index:65}
+.compareSheet{max-height:84dvh}
+.compareGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.compareColumn{min-width:0;border:1px solid var(--line);border-radius:17px;background:#151a20;padding:12px;display:flex;flex-direction:column;align-items:flex-start}
+.compareMachineIcon{width:100%;height:70px;display:grid;place-items:center;background:radial-gradient(ellipse at center,#60421c,#20252b 75%);border-radius:12px;font-size:43px;margin-bottom:10px}
+.compareColumn>b{font:700 12px 'Space Grotesk';margin-bottom:7px;overflow-wrap:anywhere}
+.compareMetric{width:100%;padding:10px 0;border-bottom:1px solid #ffffff0d}
+.compareMetric small,.compareMetric strong{display:block}
+.compareMetric small{font-size:9px;color:var(--muted);margin-bottom:4px}
+.compareMetric strong{font-size:12px;color:var(--yellow)}
+.compareColumn .btn{width:100%;margin-top:auto}
+.authPage{position:relative;overflow:hidden;background:radial-gradient(ellipse at 15% 12%,#ffb51b22,transparent 34%),radial-gradient(ellipse at 88% 85%,#b86b1620,transparent 36%),#0b0e12}
+.authPage:before,.authPage:after{content:"";position:fixed;pointer-events:none;border:1px solid #ffb51b16;border-radius:50%;width:480px;height:480px}
+.authPage:before{top:-330px;right:-180px;box-shadow:0 0 0 34px #ffb51b06,0 0 0 70px #ffb51b04}
+.authPage:after{bottom:-390px;left:-230px;box-shadow:0 0 0 34px #ffb51b06,0 0 0 70px #ffb51b04}
+.authCard{backdrop-filter:blur(18px);background:linear-gradient(145deg,#1c2229f5,#14191ff5);border-color:#ffffff18;box-shadow:0 35px 100px #000a}
+.authCard .brandMark{position:relative;overflow:hidden}
+.authCard .brandMark:after{content:"";position:absolute;inset:-80% 35%;background:#fff8;transform:rotate(28deg);animation:heroShine 7s ease-in-out infinite}
+.introCard{text-align:left}
+.introCard .brandMark{font-size:31px}
+.introCard .btn{margin-top:7px}
+.introCard .textButton{display:block;margin:8px auto 0}
+.topbar{box-shadow:0 8px 24px #0002}
+.pageHead{min-height:82px}
+.content{padding-bottom:34px}
+@media(min-width:760px){
+  .appShell{max-width:1040px}
+  .bottomNav{width:min(100%,1040px)}
+  .topbar{padding-left:30px;padding-right:30px}
+  .pageHead{padding-left:30px;padding-right:30px}
+  .content{padding-left:30px;padding-right:30px}
+  .machineGrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+  .machineVisual{height:135px}
+  .machineVisual>span{font-size:82px}
+  .customerHome .hero{min-height:220px;padding:30px}
+  .customerHome .hero h2{font-size:38px}
+  .customerHome .actionGrid{max-width:650px}
+}
+@media(max-width:420px){
+  .premiumMachineCard{padding:10px}
+  .machineVisual{margin:-10px -10px 11px;height:90px}
+  .machineVisual>span{font-size:59px}
+  .machineRateMain b{font-size:17px}
+  .fleetHeading h2{font-size:19px}
+  .compareDock{bottom:calc(76px + env(safe-area-inset-bottom))}
+}
+@media(prefers-reduced-motion:reduce){.machineVisual>span{animation:none}}
