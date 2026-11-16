@@ -359,3 +359,51 @@ button,.btn{ -webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .profileMenuSignout{color:#ffaaa5;padding-left:13px}
 .profileMenuSignout span{font-weight:800}
 @media(max-width:380px){.profileMenu{right:-4px;width:min(276px,calc(100vw - 24px))}}
+
+
+/* Phase 2 workspace */
+.phase2Grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+.phase2Panel{min-width:0}
+.phase2Panel .sectionTitle{align-items:flex-start;margin-bottom:16px}
+.phase2Panel .sectionTitle h2{font-size:18px;margin:0}
+.phase2Panel .muted{font-size:12px;margin-top:5px}
+.phase2Panel .field{display:flex;flex-direction:column;gap:7px;margin:12px 0}
+.phase2Panel .field span{font-size:12px;color:var(--muted,#9aa3ad);font-weight:700}
+.phase2Panel .field input,.phase2Panel .field select,.phase2Panel .input,.phase2Panel textarea.input{width:100%;min-height:44px;border:1px solid var(--line,#30343a);border-radius:12px;background:var(--surface,#171a1f);color:var(--text,#f4f5f6);padding:11px 13px;font:inherit;outline:none}
+.phase2Panel .field input:focus,.phase2Panel .field select:focus,.phase2Panel textarea:focus{border-color:var(--yellow,#ffb51b);box-shadow:0 0 0 3px #ffb51b22}
+.phase2Panel .btn{min-height:42px;border-radius:12px;padding:10px 14px;font-weight:750}
+.phase2Panel .btn.secondary{background:#252a31;color:#eef0f3;border:1px solid #3a414a}
+.phase2Panel .buttonRow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.phase2Panel .buttonRow .btn{width:auto;flex:1}
+.phase2ListButton{display:flex;width:100%;align-items:center;justify-content:space-between;gap:12px;text-align:left;padding:12px 13px;border:1px solid var(--line,#30343a);border-radius:13px;background:transparent;color:inherit;margin:8px 0}
+.phase2ListButton.active{border-color:var(--yellow,#ffb51b);background:#ffb51b0c}
+.phase2ListButton span{display:grid;gap:4px;min-width:0}
+.phase2ListButton small,.phase2Row small,.phase2Coupon small{display:block;color:var(--muted,#9aa3ad);font-size:11px;margin-top:4px}
+.phase2Status{font-size:10px;text-transform:uppercase;letter-spacing:.05em;font-weight:800;padding:6px 8px;border-radius:20px;background:#ffffff12;color:#cbd1d8;white-space:nowrap}
+.phase2Status.open,.phase2Status.pending,.phase2Status.invited{background:#ffb51b20;color:#ffc44d}
+.phase2Status.in_progress,.phase2Status.joined{background:#4b9cff20;color:#8fc2ff}
+.phase2Status.resolved,.phase2Status.completed,.phase2Status.present,.phase2Status.qualified,.phase2Status.rewarded,.phase2Status.approved{background:#45c78b20;color:#70e0ad}
+.phase2Status.closed,.phase2Status.rejected,.phase2Status.absent,.phase2Status.expired{background:#ff6b6b20;color:#ff9898}
+.phase2Messages{display:flex;flex-direction:column;gap:10px;max-height:340px;overflow:auto;margin:10px 0 14px;padding:3px}
+.phase2Message{align-self:flex-start;max-width:88%;padding:11px 13px;border-radius:14px;background:#252a31;border:1px solid #353c45}
+.phase2Message.mine{align-self:flex-end;background:#3a2d12;border-color:#73551b}
+.phase2Message p{margin:6px 0;white-space:pre-wrap;overflow-wrap:anywhere}
+.phase2Message small{color:var(--muted,#9aa3ad);font-size:10px}
+.phase2Row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line,#30343a)}
+.phase2Row:last-child{border-bottom:0}
+.phase2Row>div:first-child{min-width:0;overflow-wrap:anywhere}
+.phase2Metric{display:inline-flex;flex-direction:column;gap:4px;padding:12px 16px;margin:0 8px 12px 0;border:1px solid var(--line,#30343a);border-radius:14px;background:#ffffff05}
+.phase2Metric b{font-size:20px;color:var(--yellow,#ffb51b);font-variant-numeric:tabular-nums}
+.phase2Metric small{font-size:11px;color:var(--muted,#9aa3ad)}
+.phase2ReferralCode{display:flex;flex-direction:column;gap:6px;padding:18px;border:1px dashed #9a762b;border-radius:16px;background:#ffb51b0c;margin-bottom:14px}
+.phase2ReferralCode small{font-size:10px;letter-spacing:.1em;color:var(--muted,#9aa3ad)}
+.phase2ReferralCode b{font-size:23px;letter-spacing:.08em;color:var(--yellow,#ffb51b)}
+.phase2Coupon{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px;border:1px solid var(--line,#30343a);border-radius:14px;margin:9px 0;background:#ffffff05}
+.phase2Coupon strong{color:var(--yellow,#ffb51b);white-space:nowrap}
+.phase2MoreGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.phase2MoreCard{display:flex;flex-direction:column;align-items:flex-start;gap:9px;text-align:left;min-height:142px;padding:20px;border:1px solid var(--line,#30343a);border-radius:18px;background:linear-gradient(145deg,#20252b,#15191e);color:inherit}
+.phase2MoreCard b{font-size:17px}
+.phase2MoreCard span{font-size:12px;line-height:1.5;color:var(--muted,#a4abb3)}
+.phase2MoreCard i{font-size:12px;font-style:normal;color:var(--yellow,#ffb51b);font-weight:800;margin-top:auto}
+@media(max-width:760px){.phase2Grid{grid-template-columns:1fr;gap:12px}.phase2MoreGrid{grid-template-columns:1fr 1fr}.phase2MoreCard{min-height:132px;padding:15px}.phase2Row{align-items:flex-start;flex-direction:column}.phase2Row .buttonRow{width:100%}.phase2Panel .buttonRow .btn{font-size:12px;padding:9px 10px}}
+@media(max-width:390px){.phase2MoreGrid{grid-template-columns:1fr}.phase2MoreCard{min-height:112px}}
