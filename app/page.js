@@ -416,12 +416,7 @@ export default function Home() {
     const endedAt=new Date().toISOString();
     const {error}=await supabase.from("logbook").update({end_at:endedAt}).eq("id",running.id);
     if(error)return say(error.message,"error");
-    if(!data.signoffs.some(x=>x.booking_id===running.booking.id)){
-      const signoff=await supabase.from("job_signoffs").insert({booking_id:running.booking.id,driver_id:me.id,customer_id:running.booking.customer_id,driver_notes:"Operator ended the work session"});
-      if(signoff.error)say("Work ended, but sign-off could not be saved: "+signoff.error.message,"error");
-    }
-    await supabase.from("driver_job_events").insert({booking_id:running.booking.id,driver_id:me.id,event_type:"completed",notes:"Operator ended the work session"});
-    setRunning(null);successFeedback();say("Work session completed and sent for customer sign-off.");refresh();
+    setRunning(null);successFeedback();say("Work session ended. The owner will close the booking when the job is complete.");refresh();
   };
   const saveExpense=async()=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     if(!expenseOpen)return;
@@ -458,6 +453,10 @@ export default function Home() {
   const setBookingStatus=async(b,status)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     const {error}=await supabase.from("bookings").update({status}).eq("id",b.id);
     if(error)return say(error.message,"error");
+    if(status==="done"&&b.driver_id&&b.customer_id){
+      const signoff=await supabase.from("job_signoffs").upsert({booking_id:b.id,driver_id:b.driver_id,customer_id:b.customer_id,driver_notes:"Owner marked the booking completed"},{onConflict:"booking_id"});
+      if(signoff.error)say("Booking completed, but customer sign-off could not be created: "+signoff.error.message,"error");
+    }
     if(["done","cancelled","rejected"].includes(status)&&b.machine_id)await supabase.from("machines").update({status:"free"}).eq("id",b.machine_id);
     say("Booking "+statusLabel(status).toLowerCase()+".");refresh();
   };
