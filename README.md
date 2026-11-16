@@ -116,3 +116,7 @@ npm run cap:ios
 ## Added owner analytics
 
 The owner Insights tab summarizes six-month verified revenue, booking completion, average booking value, outstanding receivables, fleet utilization, repeat customers, rental-plan mix, payment channels, top customers, operator hours/performance, and highest-revenue machine. Booking lists can also be exported to CSV.
+
+## Phase 03 release readiness
+
+The current CI artifacts are **unsigned release candidates**, not store-submittable builds. Native CI sets `NEXT_PUBLIC_ENABLE_DEMO_LOGIN=false`; the deployed web preview can continue to expose its isolated read-only demo. Run `npm run release:preflight -- --web`, `--android` or `--ios` after the corresponding build. See [RELEASE_READINESS.md](./RELEASE_READINESS.md) for the audited status, security/tenancy limitations and exact release gates. In particular, the current database is a single-business workspace and must not be used as a multi-tenant SaaS until tenant-scoped schema and RLS are implemented and tested.
