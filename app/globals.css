@@ -336,3 +336,26 @@ button,.btn{ -webkit-tap-highlight-color:transparent;touch-action:manipulation}
   .sortControl{align-self:flex-end}
   .sortControl select{max-width:160px}
 }
+
+
+/* Top avatar account menu */
+.profileMenuWrap{position:relative;display:flex;align-items:center}
+.profileMenuTrigger{border:1px solid #74521f;background:linear-gradient(145deg,#49351b,#202a34);color:#ffd07a;cursor:pointer;transition:transform .18s,border-color .18s,box-shadow .18s}
+.profileMenuTrigger:active,.profileMenuTrigger.isOpen{transform:scale(.96);border-color:#ffbf45;box-shadow:0 0 0 3px #ffb51b20}
+.profileMenu{position:absolute;right:0;top:calc(100% + 13px);width:min(292px,calc(100vw - 32px));max-height:min(72dvh,560px);overflow:auto;z-index:70;padding:10px;background:linear-gradient(155deg,#202730,#14191f);border:1px solid #3a424d;border-radius:20px;box-shadow:0 22px 65px #000b;transform-origin:top right}
+.profileMenu:before{content:"";position:absolute;right:13px;top:-6px;width:11px;height:11px;background:#202730;border-left:1px solid #3a424d;border-top:1px solid #3a424d;transform:rotate(45deg)}
+.profileMenuHead{display:flex;align-items:center;gap:11px;padding:9px 8px 13px;border-bottom:1px solid #ffffff12}
+.profileMenuAvatar{width:40px;height:40px;flex:none;border-radius:14px;display:grid;place-items:center;background:linear-gradient(145deg,#ffd27b,#ff9f1c);color:#21170a;font-weight:900;font-size:17px}
+.profileMenuHead b,.profileMenuHead small{display:block;min-width:0;overflow-wrap:anywhere}
+.profileMenuHead b{font-size:13px;color:#fff}
+.profileMenuHead small{font-size:10px;color:#9ca7b3;margin-top:4px}
+.profileMenuLabel{padding:13px 9px 6px;color:#8d99a6;font-size:9px;font-weight:900;letter-spacing:1.5px}
+.profileMenuItem,.profileMenuSignout{width:100%;min-height:41px;display:flex;align-items:center;gap:10px;padding:9px 10px;border:0;border-radius:12px;background:transparent;color:#e9edf2;text-align:left;font-size:12px;font-weight:700}
+.profileMenuItem>span{width:22px;text-align:center;color:#ffc04a;font-size:17px}
+.profileMenuItem i{margin-left:auto;font-size:9px;font-style:normal;color:#ffc04a}
+.profileMenuItem.active{background:#ffb51b18;color:#ffd27b}
+.profileMenuItem:active,.profileMenuSignout:active{background:#ffffff12}
+.profileMenuDivider{height:1px;background:#ffffff13;margin:8px 3px}
+.profileMenuSignout{color:#ffaaa5;padding-left:13px}
+.profileMenuSignout span{font-weight:800}
+@media(max-width:380px){.profileMenu{right:-4px;width:min(276px,calc(100vw - 24px))}}
