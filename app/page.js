@@ -104,7 +104,8 @@ function MachineIllustration({compact=false}) {
 
 export default function Home() {
   const [toasts,say] = useToast();
-  const [splash,setSplash] = useState(true);\n  const [theme,setTheme] = useState("dark");
+  const [splash,setSplash] = useState(true);
+  const [theme,setTheme] = useState("dark");
   const [session,setSession] = useState(null);
   const [demoMode,setDemoMode] = useState(false);
   const [demoLogin,setDemoLogin] = useState(true);
@@ -156,6 +157,13 @@ export default function Home() {
   const lastGpsRef = useRef(0);
   const wakeRef = useRef(null);
 
+  useEffect(()=>{
+    try{const saved=localStorage.getItem("jcb_theme");if(saved==="light"||saved==="dark")setTheme(saved);}catch{}
+  },[]);
+  useEffect(()=>{
+    document.documentElement.dataset.theme=theme;
+    try{localStorage.setItem("jcb_theme",theme);}catch{}
+  },[theme]);
   useEffect(()=> {
     const t=setTimeout(()=>setSplash(false),1900);
     const installHandler=(event)=>{event.preventDefault();setInstallPrompt(event);};
