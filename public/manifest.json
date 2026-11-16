@@ -1,5 +1,5 @@
 {
-  "name": "JCB Rental Service",
+  "name": "JCB Rental — Book • Track • Manage",
   "short_name": "JCB Rental",
   "start_url": "/",
   "display": "standalone",
@@ -18,6 +18,36 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "description": "Book machines, track work, manage your fleet and invoices.",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "scope": "/",
+  "shortcuts": [
+    {
+      "name": "New booking",
+      "short_name": "Book",
+      "url": "/?action=book",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "My bookings",
+      "short_name": "Bookings",
+      "url": "/?tab=bookings",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }
