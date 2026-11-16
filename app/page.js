@@ -18,7 +18,8 @@ const tabsByRole = {
 const statusLabel = (s) => ({pending:"Pending",confirmed:"Confirmed",active:"Working",done:"Completed",cancelled:"Cancelled",rejected:"Rejected",free:"Available",busy:"Busy",maintenance:"Maintenance",verified:"Verified"}[s] || s);
 const statusClass = (s) => ["confirmed","done","free","verified"].includes(s) ? "good" : ["active","busy"].includes(s) ? "info" : ["cancelled","rejected","maintenance"].includes(s) ? "bad" : "warn";
 const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const monthValue = () => new Date().toISOString().slice(0,7);
+const monthValue = () => { const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); };
+const localDateValue = () => { const d=new Date(); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); };
 const formatElapsed = (since, now) => { const s=Math.max(0,Math.floor((now-new Date(since).getTime())/1000)); return String(Math.floor(s/3600)).padStart(2,"0")+":"+String(Math.floor(s/60)%60).padStart(2,"0")+":"+String(s%60).padStart(2,"0"); };
 const introSlides = [
   {icon:"📅",title:"Monthly or hourly",body:"Book a machine for a month, a day or just a few hours — with or without diesel."},
@@ -132,7 +133,7 @@ export default function Home() {
   const [bookingOpen,setBookingOpen] = useState(false);
   const [bookingType,setBookingType] = useState("monthly");
   const [bookingStep,setBookingStep] = useState(1);
-  const [form,setForm] = useState({machine_id:"",site_address:"",work_type:"Digging",start_date:new Date().toISOString().slice(0,10),with_diesel:true,months:1,duration_hours:4,duration_days:1});
+  const [form,setForm] = useState({machine_id:"",site_address:"",work_type:"Digging",start_date:localDateValue(),with_diesel:true,months:1,duration_hours:4,duration_days:1});
   const [selected,setSelected] = useState(null);
   const [trackId,setTrackId] = useState(null);
   const [month,setMonth] = useState(monthValue());
