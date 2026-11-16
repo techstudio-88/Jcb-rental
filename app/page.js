@@ -6,13 +6,14 @@ import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { money, hoursBetween, totalHours, estimateBooking, calculateBill, upiPaymentLink, WORK_TYPES } from "@/lib/domain";
 import { initializeNativeExperience, tapFeedback, successFeedback, shareContent, subscribeNetwork, isNative } from "@/lib/native";
 import { Geolocation } from "@capacitor/geolocation";
+import PhaseTwoWorkspace from "@/components/PhaseTwoWorkspace";
 import { App } from "@capacitor/app";
 
 const LiveMap = dynamic(() => import("@/components/LiveMap"), { ssr: false, loading: () => <div className="skeleton mapSkeleton"/> });
 const tabsByRole = {
-  customer: [["home","⌂","Home"],["track","⌖","Track"],["bookings","▤","Bookings"],["profile","◉","Profile"]],
-  driver: [["duty","🚜","Duty"],["logs","⛽","Logs"],["profile","◉","Profile"]],
-  admin: [["home","▦","Overview"],["bookings","▤","Bookings"],["fleet","🚜","Fleet"],["finance","₹","Finance"],["insights","◫","Insights"],["team","♙","Team"]],
+  customer: [["home","⌂","Home"],["track","⌖","Track"],["bookings","▤","Bookings"],["more","•••","More"],["profile","◉","Profile"]],
+  driver: [["duty","🚜","Duty"],["logs","⛽","Logs"],["attendance","◷","Attendance"],["profile","◉","Profile"]],
+  admin: [["home","▦","Overview"],["bookings","▤","Bookings"],["fleet","🚜","Fleet"],["finance","₹","Finance"],["insights","◫","Insights"],["more","•••","More"],["team","♙","Team"]],
 };
 const statusLabel = (s) => ({pending:"Pending",confirmed:"Confirmed",active:"Working",done:"Completed",cancelled:"Cancelled",rejected:"Rejected",free:"Available",busy:"Busy",maintenance:"Maintenance",verified:"Verified"}[s] || s);
 const statusClass = (s) => ["confirmed","done","free","verified"].includes(s) ? "good" : ["active","busy"].includes(s) ? "info" : ["cancelled","rejected","maintenance"].includes(s) ? "bad" : "warn";
@@ -492,7 +493,7 @@ export default function Home() {
   if(!me.name)return <main className="authPage"><div className="authCard"><div className="brandMark">👋</div><div className="eyebrow">ONE LAST THING</div><h1>What should we call you?</h1><p>Your name will appear on your bookings and profile.</p><input className="input" placeholder="Full name" value={name} onChange={e=>setName(e.target.value)}/><Button onClick={saveName}>Continue →</Button></div><Toasts items={toasts}/></main>;
 
   const isAdmin=me.role==="admin", isDriver=me.role==="driver";
-  const pageTitle=({home:"Overview",track:"Live tracking",bookings:"My bookings",profile:"My profile",duty:"My duties",logs:"Fuel & repair log",fleet:"Fleet & rates",finance:"Payments & reports",insights:"Business insights",team:"Team & attendance"})[tab]||"JCB Rental";
+  const pageTitle=({home:"Overview",track:"Live tracking",bookings:"My bookings",profile:"My profile",duty:"My duties",logs:"Fuel & repair log",attendance:"Attendance & breaks",fleet:"Fleet & rates",finance:"Payments & reports",insights:"Business insights",team:"Team & attendance",more:"More tools",changes:"Booking changes",reviews:"Customer reviews",rewards:"Offers & referrals",support:"Help & support",service:"Maintenance & expenses",payroll:"Operator payroll",offers:"Coupon management"})[tab]||"JCB Rental";
   const tabs=tabsByRole[me.role]||tabsByRole.customer;
   const compareMachines=data.machines.filter(m=>compareIds.includes(m.id));
   const visibleMachines=data.machines.filter(m=>{
@@ -507,6 +508,7 @@ export default function Home() {
     <header className="topbar"><div className="brand"><span className="brandIcon">🚜</span><span>JCB <b>RENTAL</b><small>{isAdmin?"OWNER CONSOLE":isDriver?"OPERATOR APP":"CUSTOMER APP"}</small></span></div><div className="topActions">{installPrompt&&<button className="iconButton" onClick={installApp} aria-label="Install app">↓</button>}{!online&&<span className="networkPill" role="status">OFFLINE</span>}<button className="iconButton" onClick={()=>{tapFeedback();setNoticeOpen(true);markNoticesRead();}} aria-label="Notifications">♧{unread>0&&<i>{unread}</i>}</button><div className="profileMenuWrap"><button type="button" className={"avatar profileMenuTrigger"+(profileMenuOpen?" isOpen":"")} aria-label="Open account menu" aria-haspopup="menu" aria-expanded={profileMenuOpen} onClick={()=>{tapFeedback();setProfileMenuOpen(v=>!v);}}>{(me.name||"D").slice(0,1).toUpperCase()}</button><AnimatePresence>{profileMenuOpen&&<motion.div className="profileMenu" role="menu" initial={{opacity:0,y:-8,scale:.97}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-8,scale:.97}} transition={{duration:.16}}><div className="profileMenuHead"><div className="profileMenuAvatar">{(me.name||"D").slice(0,1).toUpperCase()}</div><div><b>{me.name||"Account"}</b><small>{me.phone||"Signed in"} · {isAdmin?"Owner":isDriver?"Operator":"Customer"}</small></div></div><div className="profileMenuLabel">GO TO PAGE</div>{(tabsByRole[me.role]||[]).map(([key,icon,label])=><button type="button" role="menuitem" key={key} className={"profileMenuItem"+(tab===key?" active":"")} onClick={()=>{setTab(key);setProfileMenuOpen(false);}}><span>{icon}</span>{label}{tab===key&&<i>Current</i>}</button>)}<div className="profileMenuDivider"/><button type="button" role="menuitem" className="profileMenuSignout" onClick={()=>{setProfileMenuOpen(false);signOut();}}>↪ <span>Sign out</span></button></motion.div>}</AnimatePresence></div></div></header>
     <div className="pageHead"><div><div className="eyebrow">{new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"})}</div><h1>{pageTitle}</h1></div><div className="welcomeName">Hi, {me.name.split(" ")[0]}</div></div>
     <section className="content" key={tab}>
+      <PhaseTwoWorkspace tab={tab} me={me} say={say} data={data} refresh={refresh} onNavigate={setTab}/>
       {tab==="home"&&!isAdmin&&!isDriver&&<div className="customerHome">
         <div className="hero"><div className="heroText"><span className="eyebrow dark">EQUIPMENT, ON YOUR SCHEDULE</span><h2>Move your<br/>project forward.</h2><p>Reliable machines. Clear rates. Simple bookings.</p><div className="heroTrust"><span>✓ Verified rates</span><span>✓ Live job updates</span></div></div><div className="heroMachine"><MachineIllustration/></div></div>
         <div className="actionGrid"><button onClick={()=>{setBookingType("monthly");setBookingStep(1);setForm(f=>({...f,machine_id:""}));setBookingOpen(true);}}><span>▦</span><b>Monthly plan</b><small>With or without diesel</small></button><button onClick={()=>{setBookingType("hourly");setBookingStep(1);setForm(f=>({...f,machine_id:""}));setBookingOpen(true);}}><span>◷</span><b>Hourly booking</b><small>Pay by working hours</small></button><button onClick={()=>{setBookingType("daily");setBookingStep(1);setForm(f=>({...f,machine_id:""}));setBookingOpen(true);}}><span>☀</span><b>Daily booking</b><small>Book by the day</small></button></div>
