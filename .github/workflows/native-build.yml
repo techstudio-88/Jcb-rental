@@ -44,11 +44,13 @@ jobs:
       - run: npm run build
       - run: npx cap add android
       - run: npx cap sync android
-      - run: cd android && ./gradlew assembleDebug
+      - run: cd android && ./gradlew assembleDebug bundleRelease
       - uses: actions/upload-artifact@v4
         with:
           name: jcb-rental-android-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            android/app/build/outputs/bundle/release/app-release.aab
 
   ios-simulator:
     name: iOS simulator build (unsigned)
@@ -62,8 +64,8 @@ jobs:
       - run: npm run build
       - run: npx cap add ios
       - run: npx cap sync ios
-      - run: xcodebuild -workspace ios/App/App.xcworkspace -scheme App -destination 'generic/platform=iOS Simulator' -derivedDataPath build build CODE_SIGNING_ALLOWED=NO
+      - run: xcodebuild -workspace ios/App/App.xcworkspace -scheme App -destination 'generic/platform=iOS' -archivePath build/JCBRental.xcarchive archive CODE_SIGNING_ALLOWED=NO
       - uses: actions/upload-artifact@v4
         with:
-          name: jcb-rental-ios-simulator
-          path: build/Build/Products/Debug-iphonesimulator/App.app
+          name: jcb-rental-ios-unsigned-archive
+          path: build/JCBRental.xcarchive
