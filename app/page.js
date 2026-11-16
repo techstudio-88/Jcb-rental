@@ -75,6 +75,7 @@ export default function Home() {
   const [tab,setTab] = useState("home");
   const [phone,setPhone] = useState("");
   const [otp,setOtp] = useState("");
+  const [demoRole,setDemoRole] = useState("customer");
   const [otpSent,setOtpSent] = useState(false);
   const [busy,setBusy] = useState(false);
   const [name,setName] = useState("");
@@ -183,7 +184,7 @@ export default function Home() {
   const verifyOtp=async()=>{
     if(demoMode){
       if(!/^\d{4,6}$/.test(otp))return say("Enter any 4–6 digit demo code.","error");
-      const demoUser={id:"demo-customer",phone:"+91"+phone,role:"customer",name:"Demo Customer",isDemo:true};
+      const demoUser={id:"demo-"+demoRole,phone:"+91"+phone,role:demoRole,name:demoRole==="admin"?"Demo Owner":demoRole==="driver"?"Demo Operator":"Demo Customer",daily_wage:800,isDemo:true};
       try { localStorage.setItem("jcb_demo_session",JSON.stringify(demoUser)); } catch {}
       setMe(demoUser);setSession(null);setBooting(false);say("Demo sign-in successful. Demo changes are not saved.");return;
     }
@@ -213,7 +214,7 @@ export default function Home() {
     if(bookingStep===2&&form.site_address.trim().length<5)return say("Enter the complete work-site address.","error");
     setBookingStep(s=>Math.min(3,s+1));
   };
-  const createBooking=async()=>{
+  const createBooking=async()=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     if(!form.machine_id)return say("Choose a machine first.","error");
     if(form.site_address.trim().length<5)return say("Enter the complete work-site address.","error");
     const payload={...form,type:bookingType,customer_id:me.id,quoted_rate:bookingType==="monthly"?(form.with_diesel?currentMachine.monthly_diesel:currentMachine.monthly_no_diesel):bookingType==="daily"?(currentMachine.daily_rate||currentMachine.hourly_rate*8):currentMachine.hourly_rate,status:"pending"};
@@ -221,7 +222,7 @@ export default function Home() {
     if(error)return say(error.message,"error");
     setBookingOpen(false);setCelebration(x=>x+1);say("Booking request sent to the owner.");setTab("bookings");refresh();
   };
-  const cancelBooking=async(b)=>{
+  const cancelBooking=async(b)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     const {error}=await supabase.from("bookings").update({status:"cancelled"}).eq("id",b.id);
     if(error)return say(error.message,"error");say("Booking cancelled.");refresh();
   };
@@ -229,7 +230,7 @@ export default function Home() {
   const verifiedPaid=(id)=>data.payments.filter(p=>p.booking_id===id&&p.status==="verified").reduce((s,p)=>s+Number(p.amount),0);
   const allSubmitted=(id)=>data.payments.filter(p=>p.booking_id===id&&p.status!=="rejected").reduce((s,p)=>s+Number(p.amount),0);
   const billFor=(b)=>calculateBill(b,b.machines,bookingLogs(b.id));
-  const payBalance=async(b,method)=>{
+  const payBalance=async(b,method)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     const amount=Math.max(0,billFor(b).total-allSubmitted(b.id));
     if(!amount)return say("No balance is due.");
     const {error}=await supabase.from("payments").insert({booking_id:b.id,amount:Math.ceil(amount),method,status:"pending"});
@@ -262,7 +263,7 @@ export default function Home() {
     const booking=open&&data.bookings.find(b=>b.id===open.booking_id);
     if(open&&booking){setRunning({...open,booking});startGps(booking);}
   },[data.logs,data.bookings,me?.id,me?.role,running]);
-  const startWork=async(b)=>{
+  const startWork=async(b)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     if(running)return say("End the current duty before starting another.","error");
     const {data:row,error}=await supabase.from("logbook").insert({booking_id:b.id}).select().single();
     if(error)return say(error.message,"error");
@@ -270,14 +271,14 @@ export default function Home() {
     if(status.error)say(status.error.message,"error");
     setRunning({...row,booking:b});startGps(b);say("Work timer started.");refresh();
   };
-  const endWork=async()=>{
+  const endWork=async()=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     if(!running)return;
     stopGps();
     const {error}=await supabase.from("logbook").update({end_at:new Date().toISOString()}).eq("id",running.id);
     if(error)return say(error.message,"error");
     setRunning(null);say("Work session completed.");refresh();
   };
-  const saveExpense=async()=>{
+  const saveExpense=async()=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     if(!expenseOpen)return;
     if(!expenseForm.amount||Number(expenseForm.amount)<=0)return say("Enter a valid amount.","error");
     if(!proof)return say("Attach a photo of the receipt or proof.","error");
@@ -291,39 +292,39 @@ export default function Home() {
     if(error)return say(error.message,"error");
     setExpenseOpen(null);setProof(null);setExpenseForm({kind:"diesel",litres:"",amount:"",notes:""});say("Expense saved with proof.");refresh();
   };
-  const addMachine=async()=>{
+  const addMachine=async()=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     if(!machineForm.model.trim())return say("Enter the machine model.","error");
     const payload=Object.fromEntries(Object.entries(machineForm).map(([k,v])=>[k,["model","reg_no"].includes(k)?v:Number(v||0)]));
     const {error}=await supabase.from("machines").insert(payload);
     if(error)return say(error.message,"error");
     setMachineOpen(false);setMachineForm({model:"",reg_no:"",hourly_rate:"",daily_rate:"",monthly_diesel:"",monthly_no_diesel:""});say("Machine added.");refresh();
   };
-  const updateMachine=async(m,key,value)=>{
+  const updateMachine=async(m,key,value)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     const {error}=await supabase.from("machines").update({[key]:key==="status"?value:Number(value)}).eq("id",m.id);
     if(error)return say(error.message,"error");say("Fleet details updated.");refresh();
   };
-  const approveBooking=async(b)=>{
+  const approveBooking=async(b)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     const driver_id=assign[b.id];if(!driver_id)return say("Select a driver before approving.","error");
     const {error}=await supabase.from("bookings").update({status:"confirmed",driver_id}).eq("id",b.id);
     if(error)return say(error.message,"error");
     await supabase.from("machines").update({status:"busy"}).eq("id",b.machine_id);
     setCelebration(x=>x+1);say("Booking approved and driver assigned.");refresh();
   };
-  const setBookingStatus=async(b,status)=>{
+  const setBookingStatus=async(b,status)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     const {error}=await supabase.from("bookings").update({status}).eq("id",b.id);
     if(error)return say(error.message,"error");
     if(["done","cancelled","rejected"].includes(status)&&b.machine_id)await supabase.from("machines").update({status:"free"}).eq("id",b.machine_id);
     say("Booking "+statusLabel(status).toLowerCase()+".");refresh();
   };
-  const verifyPayment=async(p,status)=>{
+  const verifyPayment=async(p,status)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     const {error}=await supabase.from("payments").update({status,verified_at:status==="verified"?new Date().toISOString():null,verified_by:status==="verified"?me.id:null}).eq("id",p.id);
     if(error)return say(error.message,"error");say("Payment "+status+".");refresh();
   };
-  const updateRole=async(u,role)=>{
+  const updateRole=async(u,role)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     const {error}=await supabase.from("profiles").update({role}).eq("id",u.id);
     if(error)return say(error.message,"error");say("Team role updated.");refresh();
   };
-  const updateWage=async(u,value)=>{
+  const updateWage=async(u,value)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     const {error}=await supabase.from("profiles").update({daily_wage:Number(value)||0}).eq("id",u.id);
     if(error)return say(error.message,"error");say("Daily wage saved.");refresh();
   };
@@ -353,8 +354,8 @@ export default function Home() {
   if(booting)return <main className="boot"><div className="loader"/></main>;
   if(!me&&intro)return <main className="authPage"><div className="authCard introCard"><div className="brandMark">{introSlides[slide].icon}</div><div className="eyebrow">WELCOME TO JCB RENTAL</div><h1>{introSlides[slide].title}</h1><p>{introSlides[slide].body}</p><div className="stepDots">{introSlides.map((x,i)=><i key={i} className={i===slide?"on":""}/>)}</div><Button onClick={()=>{if(slide<introSlides.length-1)setSlide(slide+1);else{localStorage.setItem("jcb_seen","1");setIntro(false);}}}>{slide<introSlides.length-1?"Next →":"Get started →"}</Button><button className="textButton" onClick={()=>{localStorage.setItem("jcb_seen","1");setIntro(false);}}>Skip introduction</button></div><Toasts items={toasts}/></main>;
   if(!me)return <main className="authPage"><AnimatePresence>{splash&&<Splash/>}</AnimatePresence>
-    <div className="authCard"><div className="brandMark">🚜</div><div className="eyebrow">JCB RENTAL SERVICE</div><h1>{otpSent?"Verify your number":"Work starts here."}</h1><p>{otpSent?"Enter the one-time code sent to +91 "+phone:"Book machines, manage work and keep every bill in one place."}</p>
-      {!otpSent?<><div className="phoneInput"><span>+91</span><input autoComplete="tel-national" inputMode="numeric" maxLength={10} placeholder="10-digit mobile number" value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,""))}/></div><Button disabled={busy} onClick={sendOtp}>{busy?"Sending…":"Send OTP →"}</Button></>:<><input className="otpInput" autoComplete="one-time-code" inputMode="numeric" maxLength={6} placeholder="• • • • • •" value={otp} onChange={e=>setOtp(e.target.value.replace(/\D/g,""))}/><Button disabled={busy} onClick={verifyOtp}>{busy?"Verifying…":"Verify & Continue →"}</Button><button className="textButton" onClick={()=>{setOtpSent(false);setOtp("");}}>Change mobile number</button></>}
+    <div className="authCard"><div className="brandMark">🚜</div><div className="eyebrow">JCB RENTAL SERVICE</div><h1>{otpSent?"Verify your number":"Work starts here."}</h1><p>{otpSent?"Enter any 4–6 digit demo code for temporary access.":"Book machines, manage work and keep every bill in one place."}</p>
+      {!otpSent?<><div className="phoneInput"><span>+91</span><input autoComplete="tel-national" inputMode="numeric" maxLength={10} placeholder="10-digit mobile number" value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,""))}/></div><label className="field"><span>Choose demo app</span><select value={demoRole} onChange={e=>setDemoRole(e.target.value)}><option value="customer">Customer app</option><option value="driver">Driver app</option><option value="admin">Owner / Admin dashboard</option></select></label><Button disabled={busy} onClick={sendOtp}>{busy?"Sending…":"Continue to demo →"}</Button></>:<><input className="otpInput" autoComplete="one-time-code" inputMode="numeric" maxLength={6} placeholder="• • • • • •" value={otp} onChange={e=>setOtp(e.target.value.replace(/\D/g,""))}/><Button disabled={busy} onClick={verifyOtp}>{busy?"Verifying…":"Verify & Continue →"}</Button><button className="textButton" onClick={()=>{setOtpSent(false);setOtp("");}}>Change mobile number</button></>}
       <div className="authFoot">{demoMode?"Temporary demo access · any 4–6 digit code works · no SMS is sent":"Temporary demo sign-in · no SMS provider needed"}</div>
     </div><Toasts items={toasts}/></main>;
   if(!me.name)return <main className="authPage"><div className="authCard"><div className="brandMark">👋</div><div className="eyebrow">ONE LAST THING</div><h1>What should we call you?</h1><p>Your name will appear on your bookings and profile.</p><input className="input" placeholder="Full name" value={name} onChange={e=>setName(e.target.value)}/><Button onClick={saveName}>Continue →</Button></div><Toasts items={toasts}/></main>;
@@ -363,7 +364,7 @@ export default function Home() {
   const pageTitle=({home:"Overview",track:"Live tracking",bookings:"My bookings",profile:"My profile",duty:"My duties",logs:"Fuel & repair log",fleet:"Fleet & rates",finance:"Payments & reports",team:"Team & attendance"})[tab]||"JCB Rental";
   const tabs=tabsByRole[me.role]||tabsByRole.customer;
   return <main className="appShell">
-    {me.isDemo&&<div style={{padding:"9px 14px",textAlign:"center",fontSize:12,background:"#fff1c2",color:"#624300",fontWeight:700}}>TEMPORARY DEMO MODE · Customer view only · Changes are not saved</div>}
+    {me.isDemo&&<div style={{padding:"9px 14px",textAlign:"center",fontSize:12,background:"#fff1c2",color:"#624300",fontWeight:700}}>TEMPORARY DEMO MODE · {me.role==="admin"?"Owner / Admin":me.role==="driver"?"Driver":"Customer"} view · Changes are not saved</div>}
     <AnimatePresence>{splash&&<Splash/>}</AnimatePresence><ConfettiBurst fire={celebration}/><ConfettiBurst fire={celebration}/>
     <header className="topbar"><div className="brand"><span className="brandIcon">🚜</span><span>JCB <b>RENTAL</b><small>{isAdmin?"OWNER CONSOLE":isDriver?"OPERATOR APP":"CUSTOMER APP"}</small></span></div><div className="topActions">{installPrompt&&<button className="iconButton" onClick={installApp} aria-label="Install app">↓</button>}<button className="iconButton" onClick={()=>{setNoticeOpen(true);markNoticesRead();}} aria-label="Notifications">♧{unread>0&&<i>{unread}</i>}</button><div className="avatar">{me.name.slice(0,1).toUpperCase()}</div></div></header>
     <div className="pageHead"><div><div className="eyebrow">{new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"})}</div><h1>{pageTitle}</h1></div><div className="welcomeName">Hi, {me.name.split(" ")[0]}</div></div>
