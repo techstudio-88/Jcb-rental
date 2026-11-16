@@ -12,7 +12,8 @@
     "cap:ios": "cap open ios",
     "cap:add:android": "cap add android",
     "cap:add:ios": "cap add ios",
-    "build:native": "next build && cap sync"
+    "build:native": "next build && cap sync",
+    "release:preflight": "node scripts/release-preflight.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.58.0",
