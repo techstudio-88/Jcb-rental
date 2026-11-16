@@ -319,3 +319,20 @@ button,.btn{ -webkit-tap-highlight-color:transparent;touch-action:manipulation}
   .card,.stat,.hero,.operatorIntro{animation:none!important}
   .premiumMachineCard,.machineActions button{transition:none}
 }
+
+.fleetControlRow{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0 15px}
+.fleetControlRow .fleetFilters{margin:0;min-width:0;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}
+.fleetControlRow .fleetFilters button{white-space:nowrap}
+.sortControl{display:flex;align-items:center;gap:6px;flex-shrink:0;border:1px solid #344654;border-radius:12px;padding:0 8px;background:#121c25}
+.sortControl span{font-size:9px;color:#91a0ae}
+.sortControl select{max-width:112px;min-width:0;height:36px;border:0;outline:0;background:transparent;color:#f5f7fa;font-size:10px}
+.sortControl option{background:#151e27;color:#fff}
+.nextJobCard .jobAction{min-width:122px}
+.nextJobCard .jobAction .badge{align-self:flex-end}
+.nextJobCard .jobAction .btn{font-size:9px;padding:9px 10px}
+@media(max-width:520px){
+  .fleetControlRow{align-items:stretch;flex-direction:column}
+  .fleetControlRow .fleetFilters{width:100%}
+  .sortControl{align-self:flex-end}
+  .sortControl select{max-width:160px}
+}
