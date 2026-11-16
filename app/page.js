@@ -188,6 +188,21 @@ export default function Home() {
   useEffect(()=>{setTab(me?.role==="admin"?"home":me?.role==="driver"?"duty":"home");},[me?.role]);
   useEffect(()=>{
     if(!me?.id)return;
+    const applyLink=(raw)=>{
+      try{
+        const url=new URL(raw,window.location.origin);
+        const requestedTab=url.searchParams.get("tab");
+        if(requestedTab&&tabsByRole[me.role]?.some(([key])=>key===requestedTab))setTab(requestedTab);
+        if(url.searchParams.get("action")==="book"&&me.role==="customer"){setBookingType("monthly");setBookingOpen(true);}
+      }catch{}
+    };
+    applyLink(window.location.href);
+    const listener=e=>applyLink(e.detail?.url||"");
+    window.addEventListener("jcb:deep-link",listener);
+    return()=>window.removeEventListener("jcb:deep-link",listener);
+  },[me?.id,me?.role]);
+  useEffect(()=>{
+    if(!me?.id)return;
     try{
       setFavoriteIds(JSON.parse(localStorage.getItem("jcb_favorites_"+me.id)||"[]"));
       setSavedSites(JSON.parse(localStorage.getItem("jcb_sites_"+me.id)||"[]"));
@@ -433,21 +448,6 @@ export default function Home() {
   const isAdmin=me.role==="admin", isDriver=me.role==="driver";
   const pageTitle=({home:"Overview",track:"Live tracking",bookings:"My bookings",profile:"My profile",duty:"My duties",logs:"Fuel & repair log",fleet:"Fleet & rates",finance:"Payments & reports",insights:"Business insights",team:"Team & attendance"})[tab]||"JCB Rental";
   const tabs=tabsByRole[me.role]||tabsByRole.customer;
-  useEffect(()=>{
-    if(!me?.id)return;
-    const applyLink=(raw)=>{
-      try{
-        const url=new URL(raw,window.location.origin);
-        const requestedTab=url.searchParams.get("tab");
-        if(requestedTab&&tabsByRole[me.role]?.some(([key])=>key===requestedTab))setTab(requestedTab);
-        if(url.searchParams.get("action")==="book"&&me.role==="customer"){setBookingType("monthly");setBookingOpen(true);}
-      }catch{}
-    };
-    applyLink(window.location.href);
-    const listener=e=>applyLink(e.detail?.url||"");
-    window.addEventListener("jcb:deep-link",listener);
-    return()=>window.removeEventListener("jcb:deep-link",listener);
-  },[me?.id,me?.role]);
   const compareMachines=data.machines.filter(m=>compareIds.includes(m.id));
   const visibleMachines=data.machines.filter(m=>{
     const q=machineQuery.trim().toLowerCase();
