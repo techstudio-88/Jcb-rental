@@ -66,7 +66,7 @@ Open http://localhost:3000. The browser geolocation API requires HTTPS in produc
 - **GST:** 18% is currently an estimate in the UI. Confirm the applicable GST rate, GSTIN, invoice numbering and invoice legal fields with the owner's CA before issuing tax invoices.
 - **Business data:** the owner must enter actual machine models, registration numbers, rates, service area, contact details and operator wages. No fake fleet rows are seeded.
 - **Maps:** OpenStreetMap tiles are used; production usage should respect tile usage policy and may require a dedicated tile provider at scale.
-- **App stores:** this is an installable PWA. Play Store / App Store native distribution requires a wrapper and owner-controlled developer accounts.
+- **PWA install:** Android uses the in-app Install button when Chrome exposes it. On iPhone/iPad, open the app in Safari → Share → Add to Home Screen. Play Store / App Store native distribution requires a wrapper and owner-controlled developer accounts.
 - **Commercial document:** the build specification itself flags a ₹20,000 quotation vs ₹19,000 contract mismatch. Reconcile the signed commercial documents separately.
 
 ## Verification checklist

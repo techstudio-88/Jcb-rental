@@ -5,7 +5,7 @@ export const metadata = {
   description: "Book, manage and track JCB rental machines.",
   manifest: "/manifest.json",
   appleWebApp: { capable: true, title: "JCB Rental", statusBarStyle: "black-translucent" },
-  icons: { icon: "/icon.svg", apple: "/icon.svg" },
+  icons: { icon: "/icon-192.png", apple: "/icon-192.png" },
 };
 export const viewport = {
   width: "device-width",
