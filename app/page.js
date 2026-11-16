@@ -67,6 +67,7 @@ export default function Home() {
   const [toasts,say] = useToast();
   const [splash,setSplash] = useState(true);
   const [session,setSession] = useState(null);
+  const [demoMode,setDemoMode] = useState(false);
   const [me,setMe] = useState(null);
   const [booting,setBooting] = useState(true);
   const [intro,setIntro] = useState(false);
@@ -109,12 +110,18 @@ export default function Home() {
     const installHandler=(event)=>{event.preventDefault();setInstallPrompt(event);};
     window.addEventListener("beforeinstallprompt",installHandler);
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(()=>{});
-    try { setIntro(!localStorage.getItem("jcb_seen")); } catch {}
+    try {
+      const savedDemo=localStorage.getItem("jcb_demo_session");
+      if(savedDemo){setMe(JSON.parse(savedDemo));setDemoMode(true);setBooting(false);}
+      setIntro(!localStorage.getItem("jcb_seen"));
+    } catch {}
     return ()=>{clearTimeout(t);window.removeEventListener("beforeinstallprompt",installHandler);};
   },[]);
   useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t);},[]);
   const loadProfile = useCallback(async (s) => {
-    if (!s?.user) { setMe(null); setSession(null); setBooting(false); return; }
+    if (!s?.user) { setMe(null); setSession(null); setDemoMode(false); setBooting(false); return; }
+    setDemoMode(false);
+    try { localStorage.removeItem("jcb_demo_session"); } catch {}
     setSession(s);
     let profile = null;
     for(let i=0;i<4&&!profile;i++){
@@ -131,12 +138,13 @@ export default function Home() {
   },[]);
   useEffect(()=>{
     if(!isSupabaseConfigured){setBooting(false);return;}
+    try { if(localStorage.getItem("jcb_demo_session")){setBooting(false);return;} } catch {}
     supabase.auth.getSession().then(({data})=>loadProfile(data.session));
     const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,s)=>{setTimeout(()=>loadProfile(s),0);});
     return ()=>subscription.unsubscribe();
   },[loadProfile]);
   const refresh = useCallback(async()=>{
-    if(!me?.id)return;
+    if(!me?.id||demoMode||me?.isDemo)return;
     setDataLoading(true);
     const role=me.role;
     const jobs=[
@@ -153,7 +161,7 @@ export default function Home() {
     const {data:notifs}=await supabase.from("notifications").select("*").order("created_at",{ascending:false}).limit(40);
     setNotifications(notifs||[]);
     setDataLoading(false);
-  },[me?.id,me?.role,say]);
+  },[me?.id,me?.role,demoMode,say]);
   useEffect(()=>{if(!me?.id)return;refresh();const channel=supabase.channel("app-"+me.id)
     .on("postgres_changes",{event:"*",schema:"public",table:"bookings"},refresh)
     .on("postgres_changes",{event:"*",schema:"public",table:"payments"},refresh)
@@ -167,11 +175,18 @@ export default function Home() {
 
   const sendOtp=async()=>{
     if(phone.length!==10)return say("Enter a valid 10-digit mobile number.","error");
-    setBusy(true);const {error}=await supabase.auth.signInWithOtp({phone:"+91"+phone});setBusy(false);
-    if(error)return say(error.message,"error");
-    setOtpSent(true);say("OTP sent. Check your SMS.");
+    // TEMPORARY DEMO ACCESS: bypasses SMS only; it never creates or authenticates a Supabase user.
+    setDemoMode(true);
+    setOtpSent(true);
+    say("Temporary demo mode: enter any 4–6 digit code.");
   };
   const verifyOtp=async()=>{
+    if(demoMode){
+      if(!/^\\d{4,6}$/.test(otp))return say("Enter any 4–6 digit demo code.","error");
+      const demoUser={id:"demo-customer",phone:"+91"+phone,role:"customer",name:"Demo Customer",isDemo:true};
+      try { localStorage.setItem("jcb_demo_session",JSON.stringify(demoUser)); } catch {}
+      setMe(demoUser);setSession(null);setBooting(false);say("Demo sign-in successful. Demo changes are not saved.");return;
+    }
     if(otp.length<4)return say("Enter the OTP you received.","error");
     setBusy(true);const {data:authData,error}=await supabase.auth.verifyOtp({phone:"+91"+phone,token:otp,type:"sms"});setBusy(false);
     if(error)return say(error.message,"error");
@@ -179,11 +194,12 @@ export default function Home() {
   };
   const saveName=async()=>{
     if(name.trim().length<2)return say("Enter your full name.","error");
+    if(me?.isDemo){const updated={...me,name:name.trim()};setMe(updated);try{localStorage.setItem("jcb_demo_session",JSON.stringify(updated));}catch{}say("Demo profile updated for this device.");return;}
     const {error}=await supabase.from("profiles").update({name:name.trim()}).eq("id",me.id);
     if(error)return say(error.message,"error");
     setMe({...me,name:name.trim()});say("Profile saved.");
   };
-  const signOut=async()=>{stopGps();await supabase.auth.signOut();setMe(null);setSession(null);};
+  const signOut=async()=>{stopGps();if(me?.isDemo){try{localStorage.removeItem("jcb_demo_session");}catch{}setDemoMode(false);setMe(null);setSession(null);setOtpSent(false);setOtp("");setPhone("");return;}await supabase.auth.signOut();setMe(null);setSession(null);};
   const installApp=async()=>{if(!installPrompt)return;await installPrompt.prompt();await installPrompt.userChoice;setInstallPrompt(null);};
   const markNoticesRead=async()=>{
     await supabase.from("notifications").update({read:true}).eq("user_id",me.id).eq("read",false);
@@ -339,7 +355,7 @@ export default function Home() {
   if(!me)return <main className="authPage"><AnimatePresence>{splash&&<Splash/>}</AnimatePresence>
     <div className="authCard"><div className="brandMark">🚜</div><div className="eyebrow">JCB RENTAL SERVICE</div><h1>{otpSent?"Verify your number":"Work starts here."}</h1><p>{otpSent?"Enter the one-time code sent to +91 "+phone:"Book machines, manage work and keep every bill in one place."}</p>
       {!otpSent?<><div className="phoneInput"><span>+91</span><input autoComplete="tel-national" inputMode="numeric" maxLength={10} placeholder="10-digit mobile number" value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,""))}/></div><Button disabled={busy} onClick={sendOtp}>{busy?"Sending…":"Send OTP →"}</Button></>:<><input className="otpInput" autoComplete="one-time-code" inputMode="numeric" maxLength={6} placeholder="• • • • • •" value={otp} onChange={e=>setOtp(e.target.value.replace(/\D/g,""))}/><Button disabled={busy} onClick={verifyOtp}>{busy?"Verifying…":"Verify & Continue →"}</Button><button className="textButton" onClick={()=>{setOtpSent(false);setOtp("");}}>Change mobile number</button></>}
-      <div className="authFoot">Secure sign-in with one-time password</div>
+      <div className="authFoot">{demoMode?"Temporary demo access · any 4–6 digit code works · no SMS is sent":"Temporary demo sign-in · no SMS provider needed"}</div>
     </div><Toasts items={toasts}/></main>;
   if(!me.name)return <main className="authPage"><div className="authCard"><div className="brandMark">👋</div><div className="eyebrow">ONE LAST THING</div><h1>What should we call you?</h1><p>Your name will appear on your bookings and profile.</p><input className="input" placeholder="Full name" value={name} onChange={e=>setName(e.target.value)}/><Button onClick={saveName}>Continue →</Button></div><Toasts items={toasts}/></main>;
 
@@ -347,6 +363,7 @@ export default function Home() {
   const pageTitle=({home:"Overview",track:"Live tracking",bookings:"My bookings",profile:"My profile",duty:"My duties",logs:"Fuel & repair log",fleet:"Fleet & rates",finance:"Payments & reports",team:"Team & attendance"})[tab]||"JCB Rental";
   const tabs=tabsByRole[me.role]||tabsByRole.customer;
   return <main className="appShell">
+    {me.isDemo&&<div style={{padding:"9px 14px",textAlign:"center",fontSize:12,background:"#fff1c2",color:"#624300",fontWeight:700}}>TEMPORARY DEMO MODE · Customer view only · Changes are not saved</div>}
     <AnimatePresence>{splash&&<Splash/>}</AnimatePresence><ConfettiBurst fire={celebration}/><ConfettiBurst fire={celebration}/>
     <header className="topbar"><div className="brand"><span className="brandIcon">🚜</span><span>JCB <b>RENTAL</b><small>{isAdmin?"OWNER CONSOLE":isDriver?"OPERATOR APP":"CUSTOMER APP"}</small></span></div><div className="topActions">{installPrompt&&<button className="iconButton" onClick={installApp} aria-label="Install app">↓</button>}<button className="iconButton" onClick={()=>{setNoticeOpen(true);markNoticesRead();}} aria-label="Notifications">♧{unread>0&&<i>{unread}</i>}</button><div className="avatar">{me.name.slice(0,1).toUpperCase()}</div></div></header>
     <div className="pageHead"><div><div className="eyebrow">{new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"})}</div><h1>{pageTitle}</h1></div><div className="welcomeName">Hi, {me.name.split(" ")[0]}</div></div>
