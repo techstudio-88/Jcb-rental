@@ -120,7 +120,7 @@ export default function Home() {
   const [notifications,setNotifications] = useState([]);
   const [noticeOpen,setNoticeOpen] = useState(false);
   const [profileMenuOpen,setProfileMenuOpen] = useState(false);
-  const [data,setData] = useState({bookings:[],machines:[],logs:[],payments:[],expenses:[],users:[]});
+  const [data,setData] = useState({bookings:[],machines:[],logs:[],payments:[],expenses:[],users:[],couponRedemptions:[]});
   const [dataLoading,setDataLoading] = useState(false);
   const [machineQuery,setMachineQuery] = useState("");
   const [machineFilter,setMachineFilter] = useState("all");
@@ -210,10 +210,12 @@ export default function Home() {
       supabase.from("payments").select("*,bookings(machine_id,machines(model),customer:profiles!bookings_customer_id_fkey(name))").order("created_at",{ascending:false}),
       supabase.from("diesel_logs").select("*,bookings(machine_id,machines(model),driver_id)").order("created_at",{ascending:false}),
       role==="admin" ? supabase.from("profiles").select("*").order("created_at") : Promise.resolve({data:[]}),
+      supabase.from("machine_expenses").select("*,machines(model)").order("created_at",{ascending:false}),
+      supabase.from("coupon_redemptions").select("*").order("created_at",{ascending:false}),
     ];
     const results=await Promise.all(jobs);
     for(const r of results) if(r.error) say(r.error.message,"error");
-    setData({bookings:results[0].data||[],machines:results[1].data||[],logs:results[2].data||[],payments:results[3].data||[],expenses:results[4].data||[],users:results[5].data||[]});
+    setData({bookings:results[0].data||[],machines:results[1].data||[],logs:results[2].data||[],payments:results[3].data||[],expenses:[...(results[4].data||[]),...(results[6].data||[])],users:results[5].data||[],couponRedemptions:results[7].data||[]});
     const {data:notifs}=await supabase.from("notifications").select("*").order("created_at",{ascending:false}).limit(40);
     setNotifications(notifs||[]);
     setDataLoading(false);
@@ -245,16 +247,21 @@ export default function Home() {
   },[me?.id,me?.role]);
   useEffect(()=>{
     if(!me?.id)return;
-    try{
-      setFavoriteIds(JSON.parse(localStorage.getItem("jcb_favorites_"+me.id)||"[]"));
-      setSavedSites(JSON.parse(localStorage.getItem("jcb_sites_"+me.id)||"[]"));
-    }catch{setFavoriteIds([]);setSavedSites([]);}
+    supabase.from("machine_favorites").select("machine_id").eq("user_id",me.id).then(({data:rows,error})=>{
+      if(error){say(error.message,"error");return;}
+      setFavoriteIds((rows||[]).map(x=>x.machine_id));
+    });
+    try{setSavedSites(JSON.parse(localStorage.getItem("jcb_sites_"+me.id)||"[]"));}catch{setSavedSites([]);}
   },[me?.id]);
-  const toggleFavorite=(id)=>setFavoriteIds(current=>{
-    const next=current.includes(id)?current.filter(x=>x!==id):[...current,id];
-    try{if(me?.id)localStorage.setItem("jcb_favorites_"+me.id,JSON.stringify(next));}catch{}
-    return next;
-  });
+  const toggleFavorite=async(id)=>{
+    const wasSaved=favoriteIds.includes(id);
+    const {error}=wasSaved
+      ? await supabase.from("machine_favorites").delete().eq("user_id",me.id).eq("machine_id",id)
+      : await supabase.from("machine_favorites").insert({user_id:me.id,machine_id:id});
+    if(error)return say(error.message,"error");
+    setFavoriteIds(current=>wasSaved?current.filter(x=>x!==id):[...current,id]);
+    say(wasSaved?"Machine removed from saved list.":"Machine saved to your account.","success");
+  };
   const toggleCompare=(id)=>{
     if(compareIds.includes(id)){setCompareIds(current=>current.filter(x=>x!==id));return;}
     if(compareIds.length>=2){say("Compare up to two machines at a time.");return;}
@@ -323,7 +330,7 @@ export default function Home() {
   const bookingLogs=(id)=>data.logs.filter(l=>l.booking_id===id);
   const verifiedPaid=(id)=>data.payments.filter(p=>p.booking_id===id&&p.status==="verified").reduce((s,p)=>s+Number(p.amount),0);
   const allSubmitted=(id)=>data.payments.filter(p=>p.booking_id===id&&p.status!=="rejected").reduce((s,p)=>s+Number(p.amount),0);
-  const billFor=(b)=>calculateBill(b,b.machines,bookingLogs(b.id));
+  const billFor=(b)=>{const raw=calculateBill(b,b.machines,bookingLogs(b.id));const discount=(data.couponRedemptions||[]).filter(x=>x.booking_id===b.id).reduce((sum,x)=>sum+Number(x.discount_amount||0),0);const base=Math.max(0,raw.base-discount);const tax=Math.round(base*0.18);return {...raw,base,discount,tax,total:base+tax};};
   const payBalance=async(b,method)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     const amount=Math.max(0,billFor(b).total-allSubmitted(b.id));
     if(!amount)return say("No balance is due.");
@@ -442,7 +449,7 @@ export default function Home() {
   const revenue=monthPayments.reduce((s,p)=>s+Number(p.amount),0);
   const expenses=monthExpenses.reduce((s,p)=>s+Number(p.amount),0);
   const drivers=data.users.filter(u=>u.role==="driver");
-  const machineReports=data.machines.map(m=>({machine:m,revenue:monthPayments.filter(p=>p.bookings?.machine_id===m.id).reduce((s,p)=>s+Number(p.amount),0),expense:monthExpenses.filter(x=>x.bookings?.machine_id===m.id).reduce((s,x)=>s+Number(x.amount),0)}));
+  const machineReports=data.machines.map(m=>({machine:m,revenue:monthPayments.filter(p=>p.bookings?.machine_id===m.id).reduce((s,p)=>s+Number(p.amount),0),expense:monthExpenses.filter(x=>(x.bookings?.machine_id||x.machine_id)===m.id).reduce((s,x)=>s+Number(x.amount),0)}));
   const revenueTrend=Array.from({length:6},(_,i)=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-(5-i));const key=d.toISOString().slice(0,7);return {key,label:d.toLocaleDateString("en-IN",{month:"short"}),value:data.payments.filter(p=>p.status==="verified"&&p.created_at?.slice(0,7)===key).reduce((sum,p)=>sum+Number(p.amount),0)};});
   const topCustomers=Object.values(data.bookings.reduce((acc,b)=>{const id=b.customer_id;if(!id)return acc;if(!acc[id])acc[id]={id,name:b.customer?.name||b.customer?.phone||"Customer",phone:b.customer?.phone||"",jobs:0,revenue:0};acc[id].jobs++;acc[id].revenue+=verifiedPaid(b.id);return acc;},{})).sort((a,b)=>b.revenue-a.revenue).slice(0,5);
   const driverPerformance=drivers.map(d=>{const logs=data.logs.filter(l=>l.bookings?.driver_id===d.id);return {id:d.id,name:d.name||d.phone||"Operator",hours:totalHours(logs),jobs:new Set(logs.map(l=>l.booking_id)).size};}).sort((a,b)=>b.hours-a.hours).slice(0,5);
