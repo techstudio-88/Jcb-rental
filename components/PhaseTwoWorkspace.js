@@ -73,7 +73,7 @@ export default function PhaseTwoWorkspace({ tab, me, say, data, refresh, onNavig
         if (error) throw error;
         setChanges(rows || []);
       }
-      if (tab === "rewards") {
+      if (tab === "rewards" || tab === "offers") {
         const [c, r] = await Promise.all([
           supabase.from("coupons").select("*").eq("is_active", true).order("expires_at"),
           supabase.from("referrals").select("*").order("created_at", { ascending: false })
@@ -271,7 +271,7 @@ export default function PhaseTwoWorkspace({ tab, me, say, data, refresh, onNavig
     setReferralPhone(""); say("Referral invitation recorded. Share your code with the customer.", "success"); loadWorkspace();
   };
 
-  if (tab === "more") return <div className="phase2MoreGrid">{(isAdmin ? [["support","Help desk","Review and reply to customer tickets"],["changes","Booking changes","Approve or reject customer change requests"],["service","Maintenance","Plan servicing and machine expenses"],["payroll","Payroll & incentives","Attendance register and operator incentives"],["offers","Coupons","Publish limited-time customer offers"]] : [["changes","Booking changes","Request a change to a pending or confirmed booking"],["reviews","Reviews","Rate completed rentals"],["rewards","Offers & referrals","View coupons and invite customers"],["support","Help & support","Create a ticket and contact the owner"]]).map(([key,title,desc])=><button className="phase2MoreCard" key={key} onClick={()=>onNavigate?.(key)}><b>{title}</b><span>{desc}</span><i>Open →</i></button>)}</div>;
+  if (tab === "more") return <div className="phase2MoreGrid">{(isAdmin ? [["support","Help desk","Review and reply to customer tickets"],["changes","Booking changes","Approve or reject customer change requests"],["reviews","Reviews","Moderate customer feedback"],["service","Maintenance","Plan servicing and machine expenses"],["payroll","Payroll & incentives","Attendance register and operator incentives"],["offers","Coupons & referrals","Publish offers and manage referrals"]] : [["changes","Booking changes","Request a change to a pending or confirmed booking"],["reviews","Reviews","Rate completed rentals"],["rewards","Offers & referrals","View coupons and invite customers"],["support","Help & support","Create a ticket and contact the owner"]]).map(([key,title,desc])=><button className="phase2MoreCard" key={key} onClick={()=>onNavigate?.(key)}><b>{title}</b><span>{desc}</span><i>Open →</i></button>)}</div>;
 
   if (tab === "support") return <div className="phase2Grid">
     <Panel title={isAdmin ? "Customer support inbox" : "Help & support"} subtitle="Tickets and replies are stored securely and update live.">
@@ -310,12 +310,12 @@ export default function PhaseTwoWorkspace({ tab, me, say, data, refresh, onNavig
 
   if (tab === "rewards") return <div className="phase2Grid">
     <Panel title="Referral programme" subtitle="Invite another customer. Referral rewards are recorded and verified by the owner.">
-      <div className="phase2ReferralCode"><small>YOUR REFERRAL CODE</small><b>JCB-{me.id.replace(/-/g,"").slice(0,8).toUpperCase()}</b></div>
+      <div className="phase2ReferralCode"><small>YOUR REFERRAL CODE</small><b>JCB-{me.id.replace(/-/g,"").slice(0,8).toUpperCase()}</b><button className="btn secondary" onClick={()=>navigator.clipboard?.writeText("JCB-"+me.id.replace(/-/g,"").slice(0,8).toUpperCase())}>Copy referral code</button></div>
       <TextField label="Friend's mobile number" value={referralPhone} onChange={e=>setReferralPhone(e.target.value)} placeholder="+91 98765 43210" inputMode="tel"/>
       <button className="btn" onClick={createReferral}>Record referral invitation</button>
       {referrals.map(r=><article className="phase2Row" key={r.id}><div><b>{r.referred_phone}</b><small>{r.referral_code} · {new Date(r.created_at).toLocaleDateString("en-IN")}</small></div><em className={"phase2Status "+r.status}>{r.status}</em></article>)}
     </Panel>
-    <Panel title="Available offers" subtitle="Active offers published by the owner. Coupon redemption is recorded against a booking.">
+    <Panel title="Available offers" subtitle="Apply an active coupon to one of your pending bookings."><SelectField label="Pending booking" value={couponBooking} onChange={e=>setCouponBooking(e.target.value)}><option value="">Choose booking</option>{myBookings.filter(b=>b.status==="pending").map(b=><option key={b.id} value={b.id}>{b.machines?.model} · {b.start_date}</option>)}</SelectField><SelectField label="Coupon" value={selectedCoupon} onChange={e=>setSelectedCoupon(e.target.value)}><option value="">Choose coupon</option>{coupons.map(c=><option key={c.id} value={c.id}>{c.code} · {c.discount_type==="percent"?c.discount_value+"%":money(c.discount_value)} off</option>)}</SelectField><button className="btn" onClick={applyCoupon} disabled={!couponBooking||!selectedCoupon}>Apply coupon to booking</button>
       {coupons.length===0?<EmptyState>No active coupons at the moment.</EmptyState>:coupons.map(c=><article className="phase2Coupon" key={c.id}><div><b>{c.code}</b><small>{c.description || "JCB Rental offer"} · Expires {c.expires_at?new Date(c.expires_at).toLocaleDateString("en-IN"):"No expiry"}</small></div><strong>{c.discount_type==="percent"?c.discount_value+"%":money(c.discount_value)} OFF</strong></article>)}
     </Panel>
   </div>;
