@@ -10,3 +10,21 @@
 .skeletonCard{height:104px;padding:16px;border-radius:18px;border:1px solid var(--line);background:#181d23;display:flex;flex-direction:column;gap:11px;overflow:hidden}
 .skeletonCard i{display:block;height:9px;width:66%;border-radius:9px;background:linear-gradient(90deg,#242a32,#3a424d,#242a32);background-size:220% 100%;animation:shimmer 1.2s linear infinite}
 .skeletonCard i.wide{width:84%;height:13px}.skeletonCard i.short{width:42%}
+
+
+/* Premium interaction and native-device polish */
+:root{color-scheme:dark;--safe-bottom:env(safe-area-inset-bottom,0px)}
+button,.card,.iconButton{ -webkit-tap-highlight-color:transparent}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--yellow);outline-offset:3px}
+.card{transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease}
+@media(hover:hover){.card:hover{transform:translateY(-2px);border-color:#51505a;box-shadow:0 16px 38px #0004}.btn:hover{filter:brightness(1.08);transform:translateY(-1px)}.iconButton:hover{border-color:var(--yellow);color:var(--yellow)}}
+.heroMachine{animation:machineFloat 5s ease-in-out infinite;transform-origin:55% 70%}
+@keyframes machineFloat{0%,100%{transform:translateY(0) rotate(-9deg)}50%{transform:translateY(-7px) rotate(-6deg)}}
+.hero{isolation:isolate}.hero:before{content:"";position:absolute;inset:-80% auto -80% -40%;width:35%;background:linear-gradient(90deg,transparent,#fff5,transparent);transform:rotate(24deg);animation:heroShine 8s ease-in-out infinite;z-index:1}
+@keyframes heroShine{0%,65%,100%{left:-45%}35%{left:125%}}
+.networkPill{border:1px solid #8a5520;background:#392511;color:#ffd38a;padding:7px 9px;border-radius:30px;font-size:9px;font-weight:900;letter-spacing:1px}
+.bottomNav button{transition:color .2s ease,transform .2s ease}.bottomNav button:active{transform:scale(.92)}
+.sheet{padding-bottom:calc(25px + var(--safe-bottom));overscroll-behavior:contain}
+.appShell{padding-bottom:calc(88px + var(--safe-bottom))}
+@media(min-width:700px){.appShell{max-width:760px;border-radius:0 0 24px 24px;box-shadow:0 25px 90px #0008}.bottomNav{width:min(100%,760px);border-radius:18px 18px 0 0}.content{padding-left:22px;padding-right:22px}.topbar{padding-left:24px;padding-right:24px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
