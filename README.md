@@ -4,10 +4,10 @@ A role-based Next.js PWA for customers, machine operators and the rental owner. 
 
 ## Current implementation
 
-- Customer: phone OTP, monthly/hourly/daily booking, rate estimate, pending cancellation, active-job map, live notifications, logbook, payment submission, print-to-PDF invoice.
+- Customer: phone OTP, three-step monthly/hourly/daily booking wizard, server-validated rate estimate, pending cancellation, active-job map with live timer, live notifications, logbook, payment submission, print-to-PDF invoice.
 - Driver: assigned duties, work timer that restores after reload, GPS updates while active, screen wake lock where supported, diesel/repair entries with camera/gallery proof.
 - Admin: booking approval/rejection and driver assignment, fleet/rate management, payment verification, monthly revenue/expense summary, per-machine totals, CSV export, team roles, attendance and wage estimates.
-- PWA: install manifest, service worker, mobile-first shell, animated splash and bottom-sheet UI.
+- PWA: install manifest with 192px/512px icons, service worker, mobile-first shell, animated splash/onboarding, bottom sheets, animated counters, confetti, skeleton loading and Android install prompt.
 - Backend: role-aware RLS, private helper schema, booking/payment notifications, Realtime publication and private photo-proof bucket.
 
 ## Stack
@@ -63,7 +63,7 @@ Open http://localhost:3000. The browser geolocation API requires HTTPS in produc
 - **SMS OTP:** provider credentials and phone-auth enablement must be configured in Supabase by the account owner.
 - **UPI:** add the owner's correct UPI ID to Vercel as `NEXT_PUBLIC_UPI_ID`. The app records a payment submission; the owner manually verifies it. It is not an automatic payment gateway.
 - **GPS:** browser geolocation and screen wake lock are best-effort. Mobile browsers may pause GPS when backgrounded or the device is locked. Continuous background tracking needs a native Android/iOS wrapper and platform permissions.
-- **GST:** 18% is currently an estimate in the UI. Confirm the applicable GST rate, GSTIN, invoice numbering and invoice legal fields with the owner's CA before issuing tax invoices.
+- **Monthly billing:** the schema supports a month count; the fixed monthly rate is multiplied by that count (partial months are not prorated).\n- **GST:** 18% is currently an estimate in the UI. Confirm the applicable GST rate, GSTIN, invoice numbering and invoice legal fields with the owner's CA before issuing tax invoices.
 - **Business data:** the owner must enter actual machine models, registration numbers, rates, service area, contact details and operator wages. No fake fleet rows are seeded.
 - **Maps:** OpenStreetMap tiles are used; production usage should respect tile usage policy and may require a dedicated tile provider at scale.
 - **PWA install:** Android uses the in-app Install button when Chrome exposes it. On iPhone/iPad, open the app in Safari → Share → Add to Home Screen. Play Store / App Store native distribution requires a wrapper and owner-controlled developer accounts.

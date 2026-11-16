@@ -5,3 +5,8 @@
 .confettiLayer{position:fixed;inset:0;z-index:75;overflow:hidden;pointer-events:none}
 .confettiLayer i{position:absolute;top:-18px;width:8px;height:13px;border-radius:2px;box-shadow:0 2px 5px #0003}
 .introCard .stepDots{margin:22px 0 15px}
+
+.skeletonList{display:grid;gap:10px;margin:8px 0 14px}
+.skeletonCard{height:104px;padding:16px;border-radius:18px;border:1px solid var(--line);background:#181d23;display:flex;flex-direction:column;gap:11px;overflow:hidden}
+.skeletonCard i{display:block;height:9px;width:66%;border-radius:9px;background:linear-gradient(90deg,#242a32,#3a424d,#242a32);background-size:220% 100%;animation:shimmer 1.2s linear infinite}
+.skeletonCard i.wide{width:84%;height:13px}.skeletonCard i.short{width:42%}
