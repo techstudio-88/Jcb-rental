@@ -63,7 +63,7 @@ Open http://localhost:3000. The browser geolocation API requires HTTPS in produc
 
 ## Known operational limits / required owner inputs
 
-- **SMS OTP:** the app now uses real Supabase phone OTP; configure and enable a supported SMS provider in Supabase before customers can sign in. Demo-code authentication has been removed.
+- **Sign-in:** the app provides a clearly labelled, read-only demo mode (any 4–6 digit code) for previews and a separate real Supabase phone-OTP mode. Demo profiles are local only and cannot access or change live business data. Real accounts require a supported SMS provider configured in Supabase.
 - **UPI:** add the owner's correct UPI ID to Vercel as `NEXT_PUBLIC_UPI_ID`. The app records a payment submission; the owner manually verifies it. It is not an automatic payment gateway.
 - **GPS:** browser geolocation and screen wake lock are best-effort. Mobile browsers may pause GPS when backgrounded or the device is locked. Continuous background tracking needs a native Android/iOS wrapper and platform permissions.
 - **Monthly billing:** the schema supports a month count; the fixed monthly rate is multiplied by that count (partial months are not prorated).\n- **GST:** 18% is currently an estimate in the UI. Confirm the applicable GST rate, GSTIN, invoice numbering and invoice legal fields with the owner's CA before issuing tax invoices.
@@ -108,7 +108,7 @@ npm run cap:ios
 - Native integrations: device status bar, keyboard resize, splash screen, hardware back navigation, haptic taps, native share sheet, device/platform detection, network connectivity, deep-link event bridge, native geolocation permission/watch, and native preferences helper.
 - Android/iOS debug build and unsigned release artifacts are built by `.github/workflows/native-build.yml`. The Android AAB and iOS archive are unsigned; they are not yet store-submittable.
 - The owner must provide Play App Signing / upload-key credentials, Apple Developer team membership and signing certificates/profiles, final app icon/screenshots, privacy-policy URL, support contact, age/content rating answers, and store listing copy before publishing.
-- Real OTP still requires a configured SMS provider. The current temporary demo login must be removed before public release. Demo roles are local and read-only; they are not real accounts.
+- Real OTP still requires a configured SMS provider. Remove the temporary read-only demo option before public store release. Demo roles are local previews only and never authenticate to or access real business records.
 - Background GPS is not enabled. Tracking is foreground/active-job only; continuous background tracking needs additional platform-specific background-location implementation and disclosure.
 - Push notifications require Firebase/APNs configuration and server-side delivery credentials; they are not enabled by this packaging foundation.
 - Complete real-device QA is required for OTP, permissions, camera/photo proof, map tracking, offline recovery, payments, and invoices on current Android and iOS devices.
