@@ -122,13 +122,24 @@ export default function Home() {
     const t=setTimeout(()=>setSplash(false),1900);
     const installHandler=(event)=>{event.preventDefault();setInstallPrompt(event);};
     window.addEventListener("beforeinstallprompt",installHandler);
-    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js",{updateViaCache:"none"}).then(reg=>reg.update()).catch(()=>{});
+    let swControllerHandler=null;
+    if ("serviceWorker" in navigator) {
+      if(sessionStorage.getItem("jcb_sw_reload")==="1") setTimeout(()=>sessionStorage.removeItem("jcb_sw_reload"),1800);
+      navigator.serviceWorker.register("/sw.js",{updateViaCache:"none"}).then(reg=>reg.update()).catch(()=>{});
+      swControllerHandler=()=>{
+        if(sessionStorage.getItem("jcb_sw_reload")!=="1"){
+          sessionStorage.setItem("jcb_sw_reload","1");
+          window.location.reload();
+        }
+      };
+      navigator.serviceWorker.addEventListener("controllerchange",swControllerHandler);
+    }
     try {
       const savedDemo=localStorage.getItem("jcb_demo_session");
       if(savedDemo){setMe(JSON.parse(savedDemo));setDemoMode(true);setBooting(false);}
       setIntro(!localStorage.getItem("jcb_seen"));
     } catch {}
-    return ()=>{clearTimeout(t);window.removeEventListener("beforeinstallprompt",installHandler);};
+    return ()=>{clearTimeout(t);window.removeEventListener("beforeinstallprompt",installHandler);if(swControllerHandler&&"serviceWorker" in navigator)navigator.serviceWorker.removeEventListener("controllerchange",swControllerHandler);};
   },[]);
   useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t);},[]);
   useEffect(()=>{let alive=true,networkHandle=null;initializeNativeExperience().then(info=>{if(alive){setNativeInfo(info);if(info.network)setOnline(info.network.connected);}});const onOnline=()=>setOnline(true),onOffline=()=>setOnline(false);window.addEventListener("online",onOnline);window.addEventListener("offline",onOffline);subscribeNetwork(status=>setOnline(status.connected)).then(handle=>{networkHandle=handle;});return()=>{alive=false;networkHandle?.remove?.();window.removeEventListener("online",onOnline);window.removeEventListener("offline",onOffline);};},[]);
