@@ -16,6 +16,7 @@ const tabsByRole = {
   admin: [["home","▦","Overview"],["bookings","▤","Bookings"],["fleet","🚜","Fleet"],["finance","₹","Finance"],["insights","◫","Insights"],["more","•••","More"],["team","♙","Team"]],
 };
 const DEMO_LOGIN_ENABLED = process.env.NEXT_PUBLIC_ENABLE_DEMO_LOGIN !== "false";
+const buildDemoData=()=>{const date=n=>{const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().slice(0,10)};const machines=[{id:"dm1",model:"JCB 3DX Super",reg_no:"UK-19-JCB-3021",hourly_rate:950,daily_rate:7200,monthly_diesel:148000,monthly_no_diesel:112000,status:"free",location:"Kotdwar, Uttarakhand"},{id:"dm2",model:"JCB 4DX",reg_no:"UK-19-JCB-4418",hourly_rate:1150,daily_rate:8600,monthly_diesel:172000,monthly_no_diesel:132000,status:"busy",location:"Najibabad, Uttar Pradesh"},{id:"dm3",model:"Tata Hitachi EX 70",reg_no:"UK-19-EX-7070",hourly_rate:1450,daily_rate:10800,monthly_diesel:215000,monthly_no_diesel:168000,status:"free",location:"Dugadda, Uttarakhand"},{id:"dm4",model:"JCB 3DX Plus",reg_no:"UK-19-JCB-1188",hourly_rate:900,daily_rate:6800,monthly_diesel:139000,monthly_no_diesel:105000,status:"maintenance",location:"Rishikesh, Uttarakhand"}];const users=[{id:"demo-customer",name:"Aarav Sharma",phone:"+919876543210",role:"customer"},{id:"demo-customer-2",name:"Rohit Construction",phone:"+919812345670",role:"customer"},{id:"demo-driver",name:"Vikram Singh",phone:"+919876500001",role:"driver",daily_wage:900},{id:"demo-driver-2",name:"Manoj Rawat",phone:"+919876500002",role:"driver",daily_wage:850}];const bookings=[{id:"db1",customer_id:users[0].id,driver_id:users[2].id,machine_id:machines[1].id,machines:machines[1],customer:users[0],driver:users[2],site_address:"Badrinath Road, Kotdwar",work_type:"Foundation",start_date:date(-1),type:"daily",duration_days:2,quoted_rate:8600,status:"active"},{id:"db2",customer_id:users[1].id,driver_id:null,machine_id:machines[0].id,machines:machines[0],customer:users[1],site_address:"Industrial Area, Kotdwar",work_type:"Road work",start_date:date(1),type:"monthly",months:1,with_diesel:true,quoted_rate:148000,status:"pending"},{id:"db3",customer_id:users[0].id,driver_id:null,machine_id:machines[2].id,machines:machines[2],customer:users[0],site_address:"Lansdowne Road, Dugadda",work_type:"Digging",start_date:date(3),type:"hourly",duration_hours:8,quoted_rate:1450,status:"confirmed"},{id:"db4",customer_id:users[1].id,driver_id:users[2].id,machine_id:machines[0].id,machines:machines[0],customer:users[1],driver:users[2],site_address:"Najibabad Bypass",work_type:"Leveling",start_date:date(-12),type:"daily",duration_days:1,quoted_rate:7200,status:"done"}];return {machines,users,bookings,logs:[{id:"dl1",booking_id:"db1",start_at:new Date(Date.now()-10800000).toISOString(),end_at:null,bookings:{driver_id:"demo-driver",customer_id:"demo-customer",machine_id:"dm2"}},{id:"dl2",booking_id:"db4",start_at:new Date(Date.now()-12*86400000).toISOString(),end_at:new Date(Date.now()-12*86400000+21600000).toISOString(),bookings:{driver_id:"demo-driver",customer_id:"demo-customer-2",machine_id:"dm1"}}],payments:[{id:"dp1",booking_id:"db1",amount:5000,method:"UPI",status:"pending",created_at:new Date().toISOString(),bookings:{machine_id:"dm2",machines:machines[1],customer:users[0]}},{id:"dp2",booking_id:"db4",amount:8496,method:"Cash",status:"verified",created_at:new Date().toISOString(),bookings:{machine_id:"dm1",machines:machines[0],customer:users[1]}}],expenses:[{id:"de1",booking_id:"db1",kind:"diesel",litres:45,amount:4200,notes:"Morning diesel refill",created_at:new Date().toISOString(),bookings:{driver_id:"demo-driver",machines:machines[1]}}],couponRedemptions:[],jobEvents:[{id:"dje1",booking_id:"db1",driver_id:"demo-driver",event_type:"accepted",created_at:new Date().toISOString()}],signoffs:[{id:"ds1",booking_id:"db4",driver_id:"demo-driver",customer_id:"demo-customer-2",driver_notes:"Work completed"}]}};
 const statusLabel = (s) => ({pending:"Pending",confirmed:"Confirmed",active:"Working",done:"Completed",cancelled:"Cancelled",rejected:"Rejected",free:"Available",busy:"Busy",maintenance:"Maintenance",verified:"Verified"}[s] || s);
 const statusClass = (s) => ["confirmed","done","free","verified"].includes(s) ? "good" : ["active","busy"].includes(s) ? "info" : ["cancelled","rejected","maintenance"].includes(s) ? "bad" : "warn";
 const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -177,7 +178,7 @@ export default function Home() {
       };
       navigator.serviceWorker.addEventListener("controllerchange",swControllerHandler);
     }
-    try { const savedDemo=localStorage.getItem("jcb_demo_session"); if(DEMO_LOGIN_ENABLED && savedDemo){const parsed=JSON.parse(savedDemo);if(parsed?.isDemo){setMe(parsed);setDemoMode(true);setBooting(false);}} setIntro(!localStorage.getItem("jcb_seen")); } catch {}
+    try { const savedDemo=localStorage.getItem("jcb_demo_session"); if(DEMO_LOGIN_ENABLED && savedDemo){const parsed=JSON.parse(savedDemo);if(parsed?.isDemo){setMe(parsed);setDemoMode(true);const savedData=localStorage.getItem("jcb_demo_data");setData(savedData?JSON.parse(savedData):buildDemoData());setBooting(false);}} setIntro(!localStorage.getItem("jcb_seen")); } catch {}
     return ()=>{clearTimeout(t);window.removeEventListener("beforeinstallprompt",installHandler);if(swControllerHandler&&"serviceWorker" in navigator)navigator.serviceWorker.removeEventListener("controllerchange",swControllerHandler);};
   },[]);
   useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t);},[]);
@@ -281,7 +282,7 @@ export default function Home() {
     try{setSavedSites(JSON.parse(localStorage.getItem("jcb_sites_"+me.id)||"[]"));}catch{setSavedSites([]);}
   },[me?.id]);
   const toggleFavorite=async(id)=>{
-    if(me?.isDemo)return say("Demo preview is read-only. Sign in with a real account to save machines.");
+    if(me?.isDemo){const saved=favoriteIds.includes(id);setFavoriteIds(v=>saved?v.filter(x=>x!==id):[...v,id]);say(saved?"Removed from demo saved list.":"Saved in demo sandbox.");return;}
     const wasSaved=favoriteIds.includes(id);
     const {error}=wasSaved
       ? await supabase.from("machine_favorites").delete().eq("user_id",me.id).eq("machine_id",id)
@@ -309,7 +310,7 @@ export default function Home() {
 
   const sendOtp=async()=>{
     if(phone.length!==10)return say("Enter a valid 10-digit mobile number.","error");
-    if(demoLogin){setDemoMode(true);setOtpSent(true);say("Read-only demo enabled. Enter any 4–6 digit code.");return;}
+    if(demoLogin){setDemoMode(true);setOtpSent(true);say("Interactive demo enabled. Enter any 4–6 digit code.");return;}
     setBusy(true);
     const {error}=await supabase.auth.signInWithOtp({phone:"+91"+phone});
     setBusy(false);
@@ -320,9 +321,7 @@ export default function Home() {
   const verifyOtp=async()=>{
     if(demoMode){
       if(!/^\d{4,6}$/.test(otp))return say("Enter any 4–6 digit demo code.","error");
-      const demoUser={id:"demo-"+demoRole,phone:"+91"+phone,role:demoRole,name:demoRole==="admin"?"Demo Owner":demoRole==="driver"?"Demo Operator":"Demo Customer",daily_wage:800,isDemo:true};
-      try{localStorage.setItem("jcb_demo_session",JSON.stringify(demoUser));}catch{}
-      setMe(demoUser);setSession(null);setBooting(false);say("Demo sign-in successful. This preview is read-only and cannot access live business data.");return;
+      const demoUser={id:demoRole==="admin"?"demo-owner":demoRole==="driver"?"demo-driver":"demo-customer",phone:"+91"+phone,role:demoRole,name:demoRole==="admin"?"Demo Owner":demoRole==="driver"?"Vikram Singh":"Aarav Sharma",daily_wage:900,isDemo:true};const sample=buildDemoData();try{localStorage.setItem("jcb_demo_session",JSON.stringify(demoUser));localStorage.setItem("jcb_demo_data",JSON.stringify(sample));}catch{}setData(sample);setNotifications([{id:"dn1",title:"New booking request",body:"A booking request is waiting for review.",read:false,created_at:new Date().toISOString()}]);setMe(demoUser);setSession(null);setBooting(false);say("Demo sandbox ready. Sample fleet, jobs, customers and payments loaded.");return;
     }
     if(otp.length<4)return say("Enter the OTP you received.","error");
     setBusy(true);const {data:authData,error}=await supabase.auth.verifyOtp({phone:"+91"+phone,token:otp,type:"sms"});setBusy(false);
@@ -336,7 +335,7 @@ export default function Home() {
     if(error)return say(error.message,"error");
     setMe({...me,name:name.trim()});say("Profile saved.");
   };
-  const signOut=async()=>{stopGps();if(me?.isDemo){try{localStorage.removeItem("jcb_demo_session");}catch{}setDemoMode(false);setMe(null);setSession(null);setOtpSent(false);setOtp("");setPhone("");return;}await supabase.auth.signOut();setMe(null);setSession(null);};
+  const signOut=async()=>{stopGps();if(me?.isDemo){try{localStorage.removeItem("jcb_demo_session");localStorage.removeItem("jcb_demo_data");}catch{}setDemoMode(false);setMe(null);setSession(null);setOtpSent(false);setOtp("");setPhone("");return;}await supabase.auth.signOut();setMe(null);setSession(null);};
   const installApp=async()=>{if(!installPrompt)return;await installPrompt.prompt();await installPrompt.userChoice;setInstallPrompt(null);};
   const markNoticesRead=async()=>{
     if(me?.isDemo)return;
@@ -351,7 +350,7 @@ export default function Home() {
     if(bookingStep===2&&form.site_address.trim().length<5)return say("Enter the complete work-site address.","error");
     setBookingStep(s=>Math.min(3,s+1));
   };
-  const createBooking=async()=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
+  const createBooking=async()=>{if(me?.isDemo){if(!form.machine_id||form.site_address.trim().length<5)return say("Choose a machine and enter a work-site address.","error");const payload={...form,type:bookingType,customer_id:me.id,quoted_rate:bookingType==="monthly"?(form.with_diesel?currentMachine.monthly_diesel:currentMachine.monthly_no_diesel):bookingType==="daily"?(currentMachine.daily_rate||currentMachine.hourly_rate*8):currentMachine.hourly_rate,status:"pending"};const row={id:"demo-booking-"+Date.now(),...payload,machines:currentMachine,customer:me};setData(d=>({...d,bookings:[row,...d.bookings]}));setBookingOpen(false);setCelebration(x=>x+1);setTab("bookings");say("Booking request created in demo sandbox.");return;}
     if(!form.machine_id)return say("Choose a machine first.","error");
     if(form.site_address.trim().length<5)return say("Enter the complete work-site address.","error");
     const payload={...form,type:bookingType,customer_id:me.id,quoted_rate:bookingType==="monthly"?(form.with_diesel?currentMachine.monthly_diesel:currentMachine.monthly_no_diesel):bookingType==="daily"?(currentMachine.daily_rate||currentMachine.hourly_rate*8):currentMachine.hourly_rate,status:"pending"};
@@ -359,7 +358,7 @@ export default function Home() {
     if(error)return say(error.message,"error");
     setBookingOpen(false);setCelebration(x=>x+1);successFeedback();say("Booking request sent to the owner.");setTab("bookings");refresh();
   };
-  const cancelBooking=async(b)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
+  const cancelBooking=async(b)=>{if(me?.isDemo){setData(d=>({...d,bookings:d.bookings.map(x=>x.id===b.id?{...x,status:"cancelled"}:x)}));say("Demo booking cancelled.");return;}
     const {error}=await supabase.from("bookings").update({status:"cancelled"}).eq("id",b.id);
     if(error)return say(error.message,"error");say("Booking cancelled.");refresh();
   };
@@ -367,7 +366,7 @@ export default function Home() {
   const verifiedPaid=(id)=>data.payments.filter(p=>p.booking_id===id&&p.status==="verified").reduce((s,p)=>s+Number(p.amount),0);
   const allSubmitted=(id)=>data.payments.filter(p=>p.booking_id===id&&p.status!=="rejected").reduce((s,p)=>s+Number(p.amount),0);
   const billFor=(b)=>{const raw=calculateBill(b,b.machines,bookingLogs(b.id));const discount=(data.couponRedemptions||[]).filter(x=>x.booking_id===b.id).reduce((sum,x)=>sum+Number(x.discount_amount||0),0);const base=Math.max(0,raw.base-discount);const tax=Math.round(base*0.18);return {...raw,base,discount,tax,total:base+tax};};
-  const payBalance=async(b,method)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
+  const payBalance=async(b,method)=>{if(me?.isDemo){const amount=Math.max(0,billFor(b).total-allSubmitted(b.id));if(!amount)return say("No balance is due.");const row={id:"demo-payment-"+Date.now(),booking_id:b.id,amount:Math.ceil(amount),method,status:"pending",created_at:new Date().toISOString(),bookings:{machine_id:b.machine_id,machines:b.machines,customer:b.customer}};setData(d=>({...d,payments:[row,...d.payments]}));setSelected(null);say("Demo payment submitted for owner verification.");return;}
     const amount=Math.max(0,billFor(b).total-allSubmitted(b.id));
     if(!amount)return say("No balance is due.");
     const {error}=await supabase.from("payments").insert({booking_id:b.id,amount:Math.ceil(amount),method,status:"pending"});
@@ -434,7 +433,7 @@ export default function Home() {
     const {error}=await supabase.from("job_signoffs").update({customer_name:me.name,customer_confirmed_at:new Date().toISOString()}).eq("id",row.id);
     if(error)return say(error.message,"error");say("Work completion confirmed.", "success");refresh();
   };
-  const startWork=async(b)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
+  const startWork=async(b)=>{if(me?.isDemo){if(running)return say("End the current duty first.");const row={id:"demo-log-"+Date.now(),booking_id:b.id,start_at:new Date().toISOString(),end_at:null,bookings:{driver_id:me.id,customer_id:b.customer_id,machine_id:b.machine_id}};setData(d=>({...d,logs:[row,...d.logs],bookings:d.bookings.map(x=>x.id===b.id?{...x,status:"active"}:x)}));setRunning({...row,booking:b});say("Demo work timer started.");return;}
     if(running)return say("End the current duty before starting another.","error");
     if(!data.jobEvents.some(x=>x.booking_id===b.id&&x.driver_id===me.id&&x.event_type==="accepted"))return say("Accept this duty before starting work.","error");
     const {data:row,error}=await supabase.from("logbook").insert({booking_id:b.id}).select().single();
@@ -443,7 +442,7 @@ export default function Home() {
     if(status.error)say(status.error.message,"error");
     setRunning({...row,booking:b});startGps(b);successFeedback();say("Work timer started.");refresh();
   };
-  const endWork=async()=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
+  const endWork=async()=>{if(me?.isDemo){if(!running)return;setData(d=>({...d,logs:d.logs.map(x=>x.id===running.id?{...x,end_at:new Date().toISOString()}:x)}));setRunning(null);say("Demo work session ended.");return;}
     if(!running)return;
     stopGps();
     const endedAt=new Date().toISOString();
@@ -451,7 +450,7 @@ export default function Home() {
     if(error)return say(error.message,"error");
     setRunning(null);successFeedback();say("Work session ended. The owner will close the booking when the job is complete.");refresh();
   };
-  const saveExpense=async()=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
+  const saveExpense=async()=>{if(me?.isDemo){say("This is a interactive demo. Changes are not saved.");return;}
     if(!expenseOpen)return;
     if(!expenseForm.amount||Number(expenseForm.amount)<=0)return say("Enter a valid amount.","error");
     if(!proof)return say("Attach a photo of the receipt or proof.","error");
@@ -465,7 +464,7 @@ export default function Home() {
     if(error)return say(error.message,"error");
     setExpenseOpen(null);setProof(null);setExpenseForm({kind:"diesel",litres:"",amount:"",notes:""});say("Expense saved with proof.");refresh();
   };
-  const addMachine=async()=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
+  const addMachine=async()=>{if(me?.isDemo){if(!machineForm.model.trim())return say("Enter the machine model.","error");const row={id:"demo-machine-"+Date.now(),...Object.fromEntries(Object.entries(machineForm).map(([k,v])=>[k,["hourly_rate","daily_rate","monthly_diesel","monthly_no_diesel"].includes(k)?Number(v||0):v.trim()||null])),status:"free"};setData(d=>({...d,machines:[...d.machines,row]}));setMachineOpen(false);say("Machine added to demo fleet.");return;}
     if(!machineForm.model.trim())return say("Enter the machine model.","error");
     const numericFields=["hourly_rate","daily_rate","monthly_diesel","monthly_no_diesel"];
     const payload=Object.fromEntries(Object.entries(machineForm).map(([k,v])=>[k,numericFields.includes(k)?Number(v||0):v.trim()?v.trim():null]));
@@ -473,14 +472,14 @@ export default function Home() {
     if(error)return say(error.message,"error");
     setMachineOpen(false);setMachineForm({model:"",reg_no:"",hourly_rate:"",daily_rate:"",monthly_diesel:"",monthly_no_diesel:"",image_url:"",location:""});say("Machine added.");refresh();
   };
-  const updateMachine=async(m,key,value)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
+  const updateMachine=async(m,key,value)=>{if(me?.isDemo){const v=["hourly_rate","daily_rate","monthly_diesel","monthly_no_diesel"].includes(key)?Number(value):value;setData(d=>({...d,machines:d.machines.map(x=>x.id===m.id?{...x,[key]:v}:x)}));say("Demo fleet updated.");return;}
     const numericFields=["hourly_rate","daily_rate","monthly_diesel","monthly_no_diesel"];
     const nextValue=key==="status"||key==="image_url"||key==="location"?(value.trim?.()||null):Number(value);
     const {error}=await supabase.from("machines").update({[key]:nextValue}).eq("id",m.id);
     if(error)return say(error.message,"error");say("Fleet details updated.");refresh();
   };
   const startPlanTrial=async(plan)=>{
-    if(me?.isDemo)return say("Trials cannot be started from the read-only demo.","error");
+    if(me?.isDemo){setOwnerSubscription({plan_id:plan.id,status:"trialing",plan,trial_ends_at:new Date(Date.now()+Number(plan.trial_days||30)*86400000).toISOString()});say("Demo plan trial activated.");return;}
     const trialDays=Number(plan.trial_days||30);
     const trialEndsAt=new Date(Date.now()+trialDays*86400000).toISOString();
     const {data:row,error}=await supabase.from("owner_subscriptions").upsert({
@@ -489,14 +488,14 @@ export default function Home() {
     if(error)return say("Could not start trial: "+error.message,"error");
     setOwnerSubscription(row);successFeedback();say("Your "+plan.name+" trial is active for "+trialDays+" days.","success");
   };
-  const approveBooking=async(b)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
+  const approveBooking=async(b)=>{if(me?.isDemo){const driver_id=assign[b.id];if(!driver_id)return say("Select an operator before approving.","error");const driver=data.users.find(u=>u.id===driver_id);setData(d=>({...d,bookings:d.bookings.map(x=>x.id===b.id?{...x,status:"confirmed",driver_id,driver}:x),machines:d.machines.map(m=>m.id===b.machine_id?{...m,status:"busy"}:m)}));say("Demo booking approved and operator assigned.");return;}
     const driver_id=assign[b.id];if(!driver_id)return say("Select a driver before approving.","error");
     const {error}=await supabase.from("bookings").update({status:"confirmed",driver_id}).eq("id",b.id);
     if(error)return say(error.message,"error");
     await supabase.from("machines").update({status:"busy"}).eq("id",b.machine_id);
     setCelebration(x=>x+1);successFeedback();say("Booking approved and driver assigned.");refresh();
   };
-  const setBookingStatus=async(b,status)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
+  const setBookingStatus=async(b,status)=>{if(me?.isDemo){setData(d=>({...d,bookings:d.bookings.map(x=>x.id===b.id?{...x,status}:x),machines:["done","cancelled","rejected"].includes(status)?d.machines.map(m=>m.id===b.machine_id?{...m,status:"free"}:m):d.machines}));say("Demo booking status updated.");return;}
     const {error}=await supabase.from("bookings").update({status}).eq("id",b.id);
     if(error)return say(error.message,"error");
     if(status==="done"&&b.driver_id&&b.customer_id){
@@ -509,7 +508,7 @@ export default function Home() {
     if(["done","cancelled","rejected"].includes(status)&&b.machine_id)await supabase.from("machines").update({status:"free"}).eq("id",b.machine_id);
     say("Booking "+statusLabel(status).toLowerCase()+".");refresh();
   };
-  const verifyPayment=async(p,status)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
+  const verifyPayment=async(p,status)=>{if(me?.isDemo){setData(d=>({...d,payments:d.payments.map(x=>x.id===p.id?{...x,status}:x)}));say("Demo payment "+status+".");return;}
     const {error}=await supabase.from("payments").update({status,verified_at:status==="verified"?new Date().toISOString():null,verified_by:status==="verified"?me.id:null}).eq("id",p.id);
     if(error)return say(error.message,"error");say("Payment "+status+".");refresh();
   };
@@ -520,15 +519,16 @@ export default function Home() {
     if(error)return say(error.message,"error");
     say("Operator reassigned.","success");refresh();
   };
-  const updateRole=async(u,role)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
+  const updateRole=async(u,role)=>{if(me?.isDemo){setData(d=>({...d,users:d.users.map(x=>x.id===u.id?{...x,role}:x)}));say("Demo team role updated.");return;}
     const {error}=await supabase.from("profiles").update({role}).eq("id",u.id);
     if(error)return say(error.message,"error");say("Team role updated.");refresh();
   };
-  const updateWage=async(u,value)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
+  const updateWage=async(u,value)=>{if(me?.isDemo){setData(d=>({...d,users:d.users.map(x=>x.id===u.id?{...x,daily_wage:Number(value)||0}:x)}));say("Demo wage saved.");return;}
     const {error}=await supabase.from("profiles").update({daily_wage:Number(value)||0}).eq("id",u.id);
     if(error)return say(error.message,"error");say("Daily wage saved.");refresh();
   };
 
+  useEffect(()=>{if(me?.isDemo){try{localStorage.setItem("jcb_demo_data",JSON.stringify(data));}catch{}}},[data,me?.isDemo]);
   const activeBookings=data.bookings.filter(b=>b.status==="active");
   const currentTrack=activeBookings.find(b=>b.id===trackId)||activeBookings[0];
   const currentTrackLog=currentTrack&&data.logs.find(l=>l.booking_id===currentTrack.id&&!l.end_at);
@@ -591,7 +591,7 @@ export default function Home() {
     return matchesQuery&&matchesFilter;
   }).sort((a,b)=>machineSort==="hourly"?Number(a.hourly_rate)-Number(b.hourly_rate):machineSort==="daily"?Number(a.daily_rate||a.hourly_rate*8)-Number(b.daily_rate||b.hourly_rate*8):a.status==="free"&&b.status!=="free"?-1:b.status==="free"&&a.status!=="free"?1:String(a.model||"").localeCompare(String(b.model||"")));
   return <main className="appShell">
-    {me.isDemo&&<div style={{padding:"9px 14px",textAlign:"center",fontSize:12,background:"#fff1c2",color:"#624300",fontWeight:700}}>TEMPORARY DEMO MODE · {me.role==="admin"?"Owner / Admin":me.role==="driver"?"Driver":"Customer"} view · Changes are not saved</div>}
+    {me.isDemo&&<div style={{padding:"9px 14px",textAlign:"center",fontSize:12,background:"#fff1c2",color:"#624300",fontWeight:700}}>INTERACTIVE DEMO SANDBOX · {me.role==="admin"?"Owner / Admin":me.role==="driver"?"Operator":"Customer"} · Sample data only</div>}
     <AnimatePresence>{splash&&<Splash/>}</AnimatePresence><ConfettiBurst fire={celebration}/>
     <header className="topbar"><div className="brand"><span className="brandIcon">🚜</span><span>JCB <b>RENTAL</b><small>{isAdmin?"OWNER CONSOLE":isDriver?"OPERATOR APP":"CUSTOMER APP"}</small></span></div><div className="topActions">{installPrompt&&<button className="iconButton" onClick={installApp} aria-label="Install app">↓</button>}{!online&&<span className="networkPill" role="status">OFFLINE</span>}<button className="iconButton" onClick={()=>{tapFeedback();setNoticeOpen(true);markNoticesRead();}} aria-label="Notifications">♧{unread>0&&<i>{unread}</i>}</button><div className="profileMenuWrap"><button type="button" className={"avatar profileMenuTrigger"+(profileMenuOpen?" isOpen":"")} aria-label="Open account menu" aria-haspopup="menu" aria-expanded={profileMenuOpen} onClick={()=>{tapFeedback();setProfileMenuOpen(v=>!v);}}>{(me.name||"D").slice(0,1).toUpperCase()}</button><AnimatePresence>{profileMenuOpen&&<motion.div className="profileMenu" role="menu" initial={{opacity:0,y:-8,scale:.97}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-8,scale:.97}} transition={{duration:.16}}><div className="profileMenuHead"><div className="profileMenuAvatar">{(me.name||"D").slice(0,1).toUpperCase()}</div><div><b>{me.name||"Account"}</b><small>{me.phone||"Signed in"} · {isAdmin?"Owner":isDriver?"Operator":"Customer"}</small></div></div><div className="profileMenuLabel">GO TO PAGE</div>{(tabsByRole[me.role]||[]).map(([key,icon,label])=><button type="button" role="menuitem" key={key} className={"profileMenuItem"+(tab===key?" active":"")} onClick={()=>{setTab(key);setProfileMenuOpen(false);}}><span>{icon}</span>{label}{tab===key&&<i>Current</i>}</button>)}{isAdmin&&<button type="button" role="menuitem" className={"profileMenuItem"+(tab==="plans"?" active":"")} onClick={()=>{setTab("plans");setProfileMenuOpen(false);}}><span>◇</span>Subscription plans{tab==="plans"&&<i>Current</i>}</button>}<div className="profileMenuDivider"/><button type="button" role="menuitem" className="profileMenuSignout" onClick={()=>{setProfileMenuOpen(false);signOut();}}>↪ <span>Sign out</span></button></motion.div>}</AnimatePresence></div></div></header>
     <div className="pageHead"><div><div className="eyebrow">{new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"})}</div><h1>{pageTitle}</h1></div><div className="welcomeName">Hi, {me.name.split(" ")[0]}</div></div>
