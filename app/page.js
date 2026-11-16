@@ -81,14 +81,14 @@ function MachineIllustration({compact=false}) {
     <g fill="#53606c"><circle cx="142" cy="190" r="23"/><circle cx="337" cy="190" r="21"/></g>
     <g fill="#1b242d"><circle cx="142" cy="190" r="9"/><circle cx="337" cy="190" r="8"/></g>
     <path d="M100 166l34-58 105-10 57 31 60 7 20 37-5 23H111z" fill={"url(#"+uid+"-machineYellow)"} stroke="#8d510b" strokeWidth="4" strokeLinejoin="round"/>
-    <path d="M209 98l17-58 74 0 37 61-14 42h-83z" fill="url(#machineYellow)" stroke="#8d510b" strokeWidth="4" strokeLinejoin="round"/>
+    <path d="M209 98l17-58 74 0 37 61-14 42h-83z" fill={"url(#"+uid+"-machineYellow)"} stroke="#8d510b" strokeWidth="4" strokeLinejoin="round"/>
     <path d="M233 52h60l26 43h-96z" fill={"url(#"+uid+"-machineGlass)"} stroke="#5b4b32" strokeWidth="5"/>
     <path d="M262 52v43" stroke="#334b5d" strokeWidth="5"/>
     <path d="M232 101h92l-5 13h-92z" fill="#9c5e11"/>
     <path d="M122 135l82-5 19 31-14 20H105z" fill="#f59e0b"/>
-    <path d="M76 149l-32 14 8 17 46-4 22-30z" fill="url(#machineYellow)" stroke="#8d510b" strokeWidth="4"/>
+    <path d="M76 149l-32 14 8 17 46-4 22-30z" fill={"url(#"+uid+"-machineYellow)"} stroke="#8d510b" strokeWidth="4"/>
     <path d="M47 160l-20 13 11 17 27-4 8-19z" fill="#3b4650"/>
-    <path d="M337 105l41-14 31-50 17 9-23 65-51 29z" fill="url(#machineYellow)" stroke="#8d510b" strokeWidth="5" strokeLinejoin="round"/>
+    <path d="M337 105l41-14 31-50 17 9-23 65-51 29z" fill={"url(#"+uid+"-machineYellow)"} stroke="#8d510b" strokeWidth="5" strokeLinejoin="round"/>
     <path d="M416 48l22-29 13 9-16 34z" fill="#d98a18" stroke="#8d510b" strokeWidth="4"/>
     <path d="M449 28l18 3-6 24-20 3z" fill={"url(#"+uid+"-machineSteel)"} stroke="#18212a" strokeWidth="3"/>
     <path d="M343 119l-15 30 18 11 27-35" fill="none" stroke="#b96a0a" strokeWidth="9" strokeLinecap="round"/>
