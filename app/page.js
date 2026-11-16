@@ -317,6 +317,7 @@ export default function Home() {
   const signOut=async()=>{stopGps();if(me?.isDemo){try{localStorage.removeItem("jcb_demo_session");}catch{}setDemoMode(false);setMe(null);setSession(null);setOtpSent(false);setOtp("");setPhone("");return;}await supabase.auth.signOut();setMe(null);setSession(null);};
   const installApp=async()=>{if(!installPrompt)return;await installPrompt.prompt();await installPrompt.userChoice;setInstallPrompt(null);};
   const markNoticesRead=async()=>{
+    if(me?.isDemo)return;
     await supabase.from("notifications").update({read:true}).eq("user_id",me.id).eq("read",false);
     setNotifications(old=>old.map(n=>({...n,read:true})));
   };
