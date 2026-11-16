@@ -33,7 +33,7 @@ if (!fs.existsSync(manifestPath)) {
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
   if (!manifest.name || !manifest.start_url || !Array.isArray(manifest.icons) || manifest.icons.length < 2) {
     fail("PWA manifest must include name, start_url and at least two icons.");
-  } else if (manifest.icons.some((icon) => !icon.src || !fs.existsSync(path.join(root, "out", icon.src.replace(/^\//, "")))) {
+  } else if (manifest.icons.some((icon) => !icon.src || !fs.existsSync(path.join(root, "out", icon.src.replace(/^\//, ""))))) {
     fail("One or more PWA icon files are missing from the export.");
   } else pass("PWA manifest and icon assets are present.");
 }
