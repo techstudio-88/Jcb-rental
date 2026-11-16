@@ -121,7 +121,7 @@ export default function Home() {
   const [notifications,setNotifications] = useState([]);
   const [noticeOpen,setNoticeOpen] = useState(false);
   const [profileMenuOpen,setProfileMenuOpen] = useState(false);
-  const [data,setData] = useState({bookings:[],machines:[],logs:[],payments:[],expenses:[],users:[],couponRedemptions:[]});
+  const [data,setData] = useState({bookings:[],machines:[],logs:[],payments:[],expenses:[],users:[],couponRedemptions:[],jobEvents:[],signoffs:[]});
   const [dataLoading,setDataLoading] = useState(false);
   const [machineQuery,setMachineQuery] = useState("");
   const [machineFilter,setMachineFilter] = useState("all");
@@ -213,10 +213,12 @@ export default function Home() {
       role==="admin" ? supabase.from("profiles").select("*").order("created_at") : Promise.resolve({data:[]}),
       supabase.from("machine_expenses").select("*,machines(model)").order("created_at",{ascending:false}),
       supabase.from("coupon_redemptions").select("*").order("created_at",{ascending:false}),
+      supabase.from("driver_job_events").select("*").order("created_at",{ascending:false}),
+      supabase.from("job_signoffs").select("*").order("created_at",{ascending:false}),
     ];
     const results=await Promise.all(jobs);
     for(const r of results) if(r.error) say(r.error.message,"error");
-    setData({bookings:results[0].data||[],machines:results[1].data||[],logs:results[2].data||[],payments:results[3].data||[],expenses:[...(results[4].data||[]),...(results[6].data||[])],users:results[5].data||[],couponRedemptions:results[7].data||[]});
+    setData({bookings:results[0].data||[],machines:results[1].data||[],logs:results[2].data||[],payments:results[3].data||[],expenses:[...(results[4].data||[]),...(results[6].data||[])],users:results[5].data||[],couponRedemptions:results[7].data||[],jobEvents:results[8].data||[],signoffs:results[9].data||[]});
     const {data:notifs}=await supabase.from("notifications").select("*").order("created_at",{ascending:false}).limit(40);
     setNotifications(notifs||[]);
     setDataLoading(false);
@@ -374,8 +376,34 @@ export default function Home() {
     const booking=open&&data.bookings.find(b=>b.id===open.booking_id);
     if(open&&booking){setRunning({...open,booking});startGps(booking);}
   },[data.logs,data.bookings,me?.id,me?.role,running]);
+  const respondToDuty=async(b,event_type)=>{
+    if(data.jobEvents.some(x=>x.booking_id===b.id&&x.driver_id===me.id&&["accepted","rejected"].includes(x.event_type)))return say("You have already responded to this duty.","error");
+    const {error}=await supabase.from("driver_job_events").insert({booking_id:b.id,driver_id:me.id,event_type});
+    if(error)return say(error.message,"error");
+    say(event_type==="accepted"?"Duty accepted. You can now start work.":"Duty declined. The owner will be notified.",event_type==="accepted"?"success":"info");refresh();
+  };
+  const markArrived=async(b)=>{
+    let latitude=null,longitude=null;
+    try{
+      if(isNative()){const p=await Geolocation.getCurrentPosition({enableHighAccuracy:true,timeout:10000});latitude=p.coords.latitude;longitude=p.coords.longitude;}
+      else if(navigator.geolocation){const p=await new Promise((resolve,reject)=>navigator.geolocation.getCurrentPosition(resolve,reject,{enableHighAccuracy:true,timeout:10000}));latitude=p.coords.latitude;longitude=p.coords.longitude;}
+    }catch{}
+    const {error}=await supabase.from("driver_job_events").insert({booking_id:b.id,driver_id:me.id,event_type:"arrived",latitude,longitude,notes:latitude===null?"Arrival marked without GPS permission":"Operator reached the work site"});
+    if(error)return say(error.message,"error");say("Arrival recorded.", "success");refresh();
+  };
+  const reportBreakdown=async(b)=>{
+    const {error}=await supabase.from("driver_job_events").insert({booking_id:b.id,driver_id:me.id,event_type:"breakdown",notes:"Operator reported a machine breakdown"});
+    if(error)return say(error.message,"error");say("Breakdown reported to the owner.", "success");refresh();
+  };
+  const confirmJobSignoff=async(b)=>{
+    const row=data.signoffs.find(x=>x.booking_id===b.id);
+    if(!row)return say("Operator sign-off is not available yet.","error");
+    const {error}=await supabase.from("job_signoffs").update({customer_name:me.name,customer_confirmed_at:new Date().toISOString()}).eq("id",row.id);
+    if(error)return say(error.message,"error");say("Work completion confirmed.", "success");refresh();
+  };
   const startWork=async(b)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     if(running)return say("End the current duty before starting another.","error");
+    if(!data.jobEvents.some(x=>x.booking_id===b.id&&x.driver_id===me.id&&x.event_type==="accepted"))return say("Accept this duty before starting work.","error");
     const {data:row,error}=await supabase.from("logbook").insert({booking_id:b.id}).select().single();
     if(error)return say(error.message,"error");
     const status=await supabase.from("bookings").update({status:"active"}).eq("id",b.id);
@@ -385,9 +413,15 @@ export default function Home() {
   const endWork=async()=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     if(!running)return;
     stopGps();
-    const {error}=await supabase.from("logbook").update({end_at:new Date().toISOString()}).eq("id",running.id);
+    const endedAt=new Date().toISOString();
+    const {error}=await supabase.from("logbook").update({end_at:endedAt}).eq("id",running.id);
     if(error)return say(error.message,"error");
-    setRunning(null);successFeedback();say("Work session completed.");refresh();
+    if(!data.signoffs.some(x=>x.booking_id===running.booking.id)){
+      const signoff=await supabase.from("job_signoffs").insert({booking_id:running.booking.id,driver_id:me.id,customer_id:running.booking.customer_id,driver_notes:"Operator ended the work session"});
+      if(signoff.error)say("Work ended, but sign-off could not be saved: "+signoff.error.message,"error");
+    }
+    await supabase.from("driver_job_events").insert({booking_id:running.booking.id,driver_id:me.id,event_type:"completed",notes:"Operator ended the work session"});
+    setRunning(null);successFeedback();say("Work session completed and sent for customer sign-off.");refresh();
   };
   const saveExpense=async()=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     if(!expenseOpen)return;
@@ -520,8 +554,8 @@ export default function Home() {
         {compareIds.length>0&&<div className="compareDock"><div><b>{compareIds.length} machine{compareIds.length>1?"s":""} selected</b><small>Compare rates and availability</small></div><Button small onClick={()=>setCompareOpen(true)} disabled={compareIds.length<2}>Compare →</Button><button className="compareClear" onClick={()=>setCompareIds([])} aria-label="Clear comparison">×</button></div>}
       </div>}
       {tab==="track"&&!isAdmin&&!isDriver&&<><Card><div className="sectionTitle"><h2>Machine location</h2>{currentTrack&&<Badge value={currentTrack.status}/>}</div>{activeBookings.filter(b=>b.customer_id===me.id).length>1&&<SelectField label="Active booking" value={trackId||currentTrack?.id||""} onChange={e=>setTrackId(e.target.value)}>{activeBookings.filter(b=>b.customer_id===me.id).map(b=><option key={b.id} value={b.id}>{b.machines?.model} · {b.site_address}</option>)}</SelectField>}{currentTrack?<><LiveMap supabase={supabase} bookingId={currentTrack.id}/><div className="trackDetails"><b>{currentTrack.machines?.model}</b><span>{currentTrack.site_address}</span>{currentTrackLog&&<div className="liveTimer">{formatElapsed(currentTrackLog.start_at,now)}<small>WORKING NOW</small></div>}{currentTrack.driver&&<a href={"tel:"+currentTrack.driver.phone}>Call operator · {currentTrack.driver.name||currentTrack.driver.phone}</a>}</div></>:<Empty icon="📍" title="No active machine">Live tracking appears here once your booking is approved and the operator starts work.</Empty>}</Card></>}
-      {tab==="bookings"&&!isAdmin&&!isDriver&&<><div className="sectionTitle"><h2>Bookings & bills</h2><span>{data.bookings.filter(b=>b.customer_id===me.id).length} total</span></div>{data.bookings.filter(b=>b.customer_id===me.id).length===0?(dataLoading?<SkeletonList/>:<Empty icon="🧾" title="No bookings yet">Choose a monthly, daily or hourly plan to get started.</Empty>):data.bookings.filter(b=>b.customer_id===me.id).map(b=><Card key={b.id}><div className="rowBetween"><b>{b.machines?.model||"Machine request"}</b><Badge value={b.status}/></div><p className="muted">{b.type} · {b.start_date} · {b.work_type}</p><p className="muted">📍 {b.site_address}</p>{["confirmed","active","done"].includes(b.status)&&<div className="billMini"><span>{billFor(b).hours.toFixed(1)} working hours</span><b>{money(billFor(b).total)}</b></div>}<div className="buttonRow">{["confirmed","active","done"].includes(b.status)&&<Button small variant="secondary" onClick={()=>setSelected(b)}>View bill</Button>}{b.status==="pending"&&<Button small variant="danger" onClick={()=>cancelBooking(b)}>Cancel request</Button>}</div></Card>)}</>}
-      {tab==="duty"&&isDriver&&<><div className="operatorIntro"><div className="operatorBadge">FIELD OPERATIONS</div><h2>Ready for the next job?</h2><p>Your assigned machines, site details and live work timer are all here.</p></div><div className="statsGrid"><Stat label="Assigned duties" value={data.bookings.filter(b=>b.driver_id===me.id).length}/><Stat label="Hours this month" value={totalHours(data.logs.filter(l=>l.bookings?.driver_id===me.id&&l.start_at?.slice(0,7)===monthValue())).toFixed(1)}/><Stat label="Estimated pay" value={money(new Set(data.logs.filter(l=>l.bookings?.driver_id===me.id&&l.start_at?.slice(0,7)===monthValue()).map(l=>l.start_at.slice(0,10))).size*(me.daily_wage||0))}/></div>{data.bookings.filter(b=>b.driver_id===me.id&&["confirmed","active"].includes(b.status)).length===0?(dataLoading?<SkeletonList count={2}/>:<Empty icon="😴" title="No duties assigned">Your owner will assign a machine and site details here.</Empty>):data.bookings.filter(b=>b.driver_id===me.id&&["confirmed","active"].includes(b.status)).map(b=><Card key={b.id} className={running?.booking?.id===b.id?"activeDuty":""}><div className="rowBetween"><b>{b.machines?.model}</b><Badge value={b.status}/></div><p className="muted">{b.machines?.reg_no} · {b.start_date}</p><p>📍 {b.site_address}</p><p className="muted">Work: {b.work_type}</p>{b.customer&&<a href={"tel:"+b.customer.phone}>Call customer · {b.customer.name||b.customer.phone}</a>}{running?.booking?.id===b.id?<div className="liveTimer">{formatElapsed(running.start_at,now)}<small>WORK IN PROGRESS</small></div>:null}<Button onClick={()=>running?.booking?.id===b.id?endWork():startWork(b)} variant={running?.booking?.id===b.id?"danger":"primary"}>{running?.booking?.id===b.id?"■ End work":"▶ Start work"}</Button><Button variant="secondary" onClick={()=>setExpenseOpen(b)}>＋ Diesel / repair entry</Button></Card>)}</>}
+      {tab==="bookings"&&!isAdmin&&!isDriver&&<><div className="sectionTitle"><h2>Bookings & bills</h2><span>{data.bookings.filter(b=>b.customer_id===me.id).length} total</span></div>{data.bookings.filter(b=>b.customer_id===me.id).length===0?(dataLoading?<SkeletonList/>:<Empty icon="🧾" title="No bookings yet">Choose a monthly, daily or hourly plan to get started.</Empty>):data.bookings.filter(b=>b.customer_id===me.id).map(b=><Card key={b.id}><div className="rowBetween"><b>{b.machines?.model||"Machine request"}</b><Badge value={b.status}/></div><p className="muted">{b.type} · {b.start_date} · {b.work_type}</p><p className="muted">📍 {b.site_address}</p>{["confirmed","active","done"].includes(b.status)&&<div className="billMini"><span>{billFor(b).hours.toFixed(1)} working hours</span><b>{money(billFor(b).total)}</b></div>}{data.signoffs.find(x=>x.booking_id===b.id)&&<div className="phase2Signoff"><b>Operator sign-off</b><small>{data.signoffs.find(x=>x.booking_id===b.id).customer_confirmed_at?"You confirmed this work.":"Please confirm the completed work."}</small>{!data.signoffs.find(x=>x.booking_id===b.id).customer_confirmed_at&&<Button small onClick={()=>confirmJobSignoff(b)}>Confirm work completed</Button>}</div>}<div className="buttonRow">{["confirmed","active","done"].includes(b.status)&&<Button small variant="secondary" onClick={()=>setSelected(b)}>View bill</Button>}{b.status==="pending"&&<Button small variant="danger" onClick={()=>cancelBooking(b)}>Cancel request</Button>}</div></Card>)}</>}
+      {tab==="duty"&&isDriver&&<><div className="operatorIntro"><div className="operatorBadge">FIELD OPERATIONS</div><h2>Ready for the next job?</h2><p>Your assigned machines, site details and live work timer are all here.</p></div><div className="statsGrid"><Stat label="Assigned duties" value={data.bookings.filter(b=>b.driver_id===me.id).length}/><Stat label="Hours this month" value={totalHours(data.logs.filter(l=>l.bookings?.driver_id===me.id&&l.start_at?.slice(0,7)===monthValue())).toFixed(1)}/><Stat label="Estimated pay" value={money(new Set(data.logs.filter(l=>l.bookings?.driver_id===me.id&&l.start_at?.slice(0,7)===monthValue()).map(l=>l.start_at.slice(0,10))).size*(me.daily_wage||0))}/></div>{data.bookings.filter(b=>b.driver_id===me.id&&["confirmed","active"].includes(b.status)).length===0?(dataLoading?<SkeletonList count={2}/>:<Empty icon="😴" title="No duties assigned">Your owner will assign a machine and site details here.</Empty>):data.bookings.filter(b=>b.driver_id===me.id&&["confirmed","active"].includes(b.status)).map(b=><Card key={b.id} className={running?.booking?.id===b.id?"activeDuty":""}><div className="rowBetween"><b>{b.machines?.model}</b><Badge value={b.status}/></div><p className="muted">{b.machines?.reg_no} · {b.start_date}</p><p>📍 {b.site_address}</p><p className="muted">Work: {b.work_type}</p>{b.customer&&<a href={"tel:"+b.customer.phone}>Call customer · {b.customer.name||b.customer.phone}</a>}{running?.booking?.id===b.id?<div className="liveTimer">{formatElapsed(running.start_at,now)}<small>WORK IN PROGRESS</small></div>:null}{!data.jobEvents.some(x=>x.booking_id===b.id&&x.driver_id===me.id&&["accepted","rejected"].includes(x.event_type))&&<div className="buttonRow"><Button small onClick={()=>respondToDuty(b,"accepted")}>Accept duty</Button><Button small variant="danger" onClick={()=>respondToDuty(b,"rejected")}>Decline</Button></div>}{data.jobEvents.some(x=>x.booking_id===b.id&&x.driver_id===me.id&&x.event_type==="accepted")&&<><div className="buttonRow"><Button small variant="secondary" onClick={()=>markArrived(b)}>Mark arrived</Button><a className="btn secondary small" target="_blank" rel="noreferrer" href={"https://www.google.com/maps/dir/?api=1&destination="+encodeURIComponent(b.site_address)}>Navigate ↗</a></div><Button onClick={()=>running?.booking?.id===b.id?endWork():startWork(b)} variant={running?.booking?.id===b.id?"danger":"primary"}>{running?.booking?.id===b.id?"■ End work":"▶ Start work"}</Button><Button variant="secondary" onClick={()=>setExpenseOpen(b)}>＋ Diesel / repair entry</Button><Button variant="danger" small onClick={()=>reportBreakdown(b)}>Report breakdown</Button></>}</Card>)}</>}
       {tab==="logs"&&isDriver&&<><div className="sectionTitle"><h2>Fuel & repair records</h2></div>{data.expenses.filter(x=>x.bookings?.driver_id===me.id).length===0?<Empty icon="⛽" title="No entries yet">Add diesel or repair records from an assigned duty.</Empty>:data.expenses.filter(x=>x.bookings?.driver_id===me.id).map(x=><Card key={x.id}><div className="rowBetween"><b>{x.kind==="diesel"?"⛽ Diesel":"🔧 Repair"} · {x.bookings?.machines?.model}</b><b>{money(x.amount)}</b></div><p className="muted">{x.litres?x.litres+" litres · ":""}{new Date(x.created_at).toLocaleString("en-IN")}</p>{x.notes&&<p>{x.notes}</p>}<Button variant="secondary" small onClick={()=>openProof(x)}>View photo proof ↗</Button></Card>)}</>}
       {tab==="profile"&&<Card><div className="profileAvatar">{me.name.slice(0,1).toUpperCase()}</div><h2>{me.name}</h2><p className="muted">{me.phone}</p><Field label="Display name" value={name||me.name} onChange={e=>setName(e.target.value)}/><Button onClick={saveName}>Save profile</Button><div className="divider"/><Button variant="secondary" onClick={()=>shareContent("JCB Rental","Book machines, track work and manage rental bills.",typeof window!=="undefined"?window.location.origin:undefined)}>↗ Share app</Button><Button variant="secondary" onClick={signOut}>Sign out</Button><p className="muted">App platform: {nativeInfo.native?nativeInfo.platform.toUpperCase():"WEB / PWA"} · {online?"Connected":"Offline"}</p></Card>}
       {tab==="home"&&isDriver&&<Empty icon="🚜" title="Your operator dashboard">Open My Duties to view assigned work, start timers and record expenses.</Empty>}
