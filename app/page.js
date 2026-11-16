@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
@@ -68,20 +68,21 @@ function ConfettiBurst({fire}) {
 function Splash() { return <motion.div className="splash" initial={{opacity:1}} exit={{opacity:0,scale:1.04}} transition={{duration:.45}}><motion.div initial={{y:28,opacity:0}} animate={{y:0,opacity:1}} transition={{type:"spring",stiffness:100}} className="splashLogo">🚜</motion.div><div className="splashName">JCB <i>RENTAL</i></div><p>BOOK · TRACK · BILL</p><div className="loadingLine"><i/></div></motion.div>; }
 
 function MachineIllustration({compact=false}) {
+  const uid=useId().replace(/:/g,"");
   return <svg className={"machineArt"+(compact?" compact":"")} viewBox="0 0 480 250" role="img" aria-label="Yellow backhoe loader illustration">
     <defs>
-      <linearGradient id="machineYellow" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stopColor="#ffe08a"/><stop offset=".48" stopColor="#ffb52e"/><stop offset="1" stopColor="#d97706"/></linearGradient>
-      <linearGradient id="machineGlass" x1="0" x2="1" y1="0" y2="1"><stop stopColor="#bceaff"/><stop offset="1" stopColor="#42677d"/></linearGradient>
-      <linearGradient id="machineSteel" x1="0" x2="0" y1="0" y2="1"><stop stopColor="#596675"/><stop offset="1" stopColor="#202a34"/></linearGradient>
+      <linearGradient id={uid+"-machineYellow"} x1="0" x2="1" y1="0" y2="1"><stop offset="0" stopColor="#ffe08a"/><stop offset=".48" stopColor="#ffb52e"/><stop offset="1" stopColor="#d97706"/></linearGradient>
+      <linearGradient id={uid+"-machineGlass"} x1="0" x2="1" y1="0" y2="1"><stop stopColor="#bceaff"/><stop offset="1" stopColor="#42677d"/></linearGradient>
+      <linearGradient id={uid+"-machineSteel"} x1="0" x2="0" y1="0" y2="1"><stop stopColor="#596675"/><stop offset="1" stopColor="#202a34"/></linearGradient>
     </defs>
     <ellipse cx="244" cy="222" rx="190" ry="16" fill="#02070b" opacity=".48"/>
     <path d="M62 192h331l-16 17H79z" fill="#26313b"/>
     <g fill="#121a22" stroke="#697582" strokeWidth="5"><circle cx="142" cy="190" r="42"/><circle cx="337" cy="190" r="39"/></g>
     <g fill="#53606c"><circle cx="142" cy="190" r="23"/><circle cx="337" cy="190" r="21"/></g>
     <g fill="#1b242d"><circle cx="142" cy="190" r="9"/><circle cx="337" cy="190" r="8"/></g>
-    <path d="M100 166l34-58 105-10 57 31 60 7 20 37-5 23H111z" fill="url(#machineYellow)" stroke="#8d510b" strokeWidth="4" strokeLinejoin="round"/>
+    <path d="M100 166l34-58 105-10 57 31 60 7 20 37-5 23H111z" fill={"url(#"+uid+"-machineYellow)"} stroke="#8d510b" strokeWidth="4" strokeLinejoin="round"/>
     <path d="M209 98l17-58 74 0 37 61-14 42h-83z" fill="url(#machineYellow)" stroke="#8d510b" strokeWidth="4" strokeLinejoin="round"/>
-    <path d="M233 52h60l26 43h-96z" fill="url(#machineGlass)" stroke="#5b4b32" strokeWidth="5"/>
+    <path d="M233 52h60l26 43h-96z" fill={"url(#"+uid+"-machineGlass)"} stroke="#5b4b32" strokeWidth="5"/>
     <path d="M262 52v43" stroke="#334b5d" strokeWidth="5"/>
     <path d="M232 101h92l-5 13h-92z" fill="#9c5e11"/>
     <path d="M122 135l82-5 19 31-14 20H105z" fill="#f59e0b"/>
@@ -89,7 +90,7 @@ function MachineIllustration({compact=false}) {
     <path d="M47 160l-20 13 11 17 27-4 8-19z" fill="#3b4650"/>
     <path d="M337 105l41-14 31-50 17 9-23 65-51 29z" fill="url(#machineYellow)" stroke="#8d510b" strokeWidth="5" strokeLinejoin="round"/>
     <path d="M416 48l22-29 13 9-16 34z" fill="#d98a18" stroke="#8d510b" strokeWidth="4"/>
-    <path d="M449 28l18 3-6 24-20 3z" fill="url(#machineSteel)" stroke="#18212a" strokeWidth="3"/>
+    <path d="M449 28l18 3-6 24-20 3z" fill={"url(#"+uid+"-machineSteel)"} stroke="#18212a" strokeWidth="3"/>
     <path d="M343 119l-15 30 18 11 27-35" fill="none" stroke="#b96a0a" strokeWidth="9" strokeLinecap="round"/>
     <path d="M189 105l-13-21 9-8 21 29" fill="none" stroke="#d98a18" strokeWidth="8" strokeLinecap="round"/>
     <path d="M102 173h263" stroke="#ffe4a3" strokeWidth="3" opacity=".7"/>
@@ -508,6 +509,7 @@ export default function Home() {
         <div className="hero"><div className="heroText"><span className="eyebrow dark">EQUIPMENT, ON YOUR SCHEDULE</span><h2>Move your<br/>project forward.</h2><p>Reliable machines. Clear rates. Simple bookings.</p><div className="heroTrust"><span>✓ Verified rates</span><span>✓ Live job updates</span></div></div><div className="heroMachine"><MachineIllustration/></div></div>
         <div className="actionGrid"><button onClick={()=>{setBookingType("monthly");setBookingStep(1);setForm(f=>({...f,machine_id:""}));setBookingOpen(true);}}><span>▦</span><b>Monthly plan</b><small>With or without diesel</small></button><button onClick={()=>{setBookingType("hourly");setBookingStep(1);setForm(f=>({...f,machine_id:""}));setBookingOpen(true);}}><span>◷</span><b>Hourly booking</b><small>Pay by working hours</small></button><button onClick={()=>{setBookingType("daily");setBookingStep(1);setForm(f=>({...f,machine_id:""}));setBookingOpen(true);}}><span>☀</span><b>Daily booking</b><small>Book by the day</small></button></div>
         <div className="sectionTitle"><h2>Your activity</h2><span>{data.bookings.length} bookings</span></div><div className="statsGrid"><Stat label="Active jobs" value={activeBookings.filter(b=>b.customer_id===me.id).length}/><Stat label="Hours logged" value={totalHours(data.logs.filter(l=>l.bookings?.customer_id===me.id)).toFixed(1)}/><Stat label="Balance due" value={money(data.bookings.filter(b=>b.customer_id===me.id&&["confirmed","active","done"].includes(b.status)).reduce((s,b)=>s+Math.max(0,billFor(b).total-allSubmitted(b.id)),0))} accent="goldText"/></div>
+        {data.bookings.filter(b=>b.customer_id===me.id).slice(0,1).map(b=><Card key={"next-"+b.id} className="nextJobCard"><div className="jobMeta"><span className="quickSectionLabel">{b.status==="active"?"LIVE JOB":b.status==="pending"?"REQUEST IN REVIEW":"LATEST BOOKING"}</span><b>{b.machines?.model||"Machine request"}</b><small>📍 {b.site_address}</small><small>{b.start_date} · {b.work_type}</small></div><div className="jobAction"><Badge value={b.status}/><Button small variant="secondary" onClick={()=>{setTab(b.status==="active"?"track":"bookings");}}>View details →</Button></div></Card>)}
         <div className="fleetHeading"><div><div className="eyebrow">CHOOSE YOUR MACHINE</div><h2>Available fleet</h2><p>{data.machines.filter(m=>m.status==="free").length} machines ready for your next site</p></div><span className="fleetCount">{data.machines.length.toString().padStart(2,"0")}<small>FLEET</small></span></div>
         <div className="machineSearch"><span>⌕</span><input aria-label="Search machines" placeholder="Search model or registration…" value={machineQuery} onChange={e=>setMachineQuery(e.target.value)}/>{machineQuery&&<button onClick={()=>setMachineQuery("")} aria-label="Clear search">×</button>}</div>
         <div className="filterChips fleetFilters">{[["all","All machines"],["available","Available"],["favorites","Saved"]].map(([key,label])=><button key={key} className={machineFilter===key?"selected":""} onClick={()=>setMachineFilter(key)}>{label}{key==="favorites"&&favoriteIds.length>0?" · "+favoriteIds.length:""}</button>)}</div>
@@ -539,7 +541,7 @@ export default function Home() {
       {tab==="team"&&isAdmin&&<><div className="sectionTitle"><h2>Team & attendance</h2><span>{data.users.length} accounts</span></div>{data.users.map(u=>{const userLogs=data.logs.filter(l=>l.bookings?.driver_id===u.id&&l.start_at?.slice(0,7)===month);const days=new Set(userLogs.map(l=>l.start_at.slice(0,10))).size;return <Card key={u.id}><div className="rowBetween"><b>{u.name||"New user"}</b><span className="muted">{u.phone}</span></div><SelectField label="Role" value={u.role} disabled={u.id===me.id} onChange={e=>updateRole(u,e.target.value)}><option value="customer">Customer</option><option value="driver">Driver</option><option value="admin">Admin</option></SelectField>{u.role==="driver"&&<><Field label="Daily wage (₹)" type="number" min="0" defaultValue={u.daily_wage} onBlur={e=>Number(e.target.value)!==u.daily_wage&&updateWage(u,e.target.value)}/><div className="statsGrid"><Stat label="Attendance days" value={days}/><Stat label="Working hours" value={totalHours(userLogs).toFixed(1)}/><Stat label="Salary estimate" value={money(days*(u.daily_wage||0))}/></div></>}</Card>})}</>}
       {compareOpen&&<div className="overlay compareOverlay" onClick={()=>setCompareOpen(false)}><motion.div className="sheet compareSheet" initial={{y:"100%"}} animate={{y:0}} exit={{y:"100%"}} onClick={e=>e.stopPropagation()}><div className="sheetHandle"/><div className="rowBetween"><div><div className="eyebrow">SIDE-BY-SIDE</div><h2>Compare machines</h2></div><button className="textButton" onClick={()=>setCompareOpen(false)}>Close</button></div><div className="compareGrid">{compareMachines.map(m=><div className="compareColumn" key={m.id}><div className="compareMachineIcon"><MachineIllustration compact/></div><b>{m.model}</b><Badge value={m.status}/><div className="compareMetric"><small>Hourly</small><strong>{money(m.hourly_rate)}</strong></div><div className="compareMetric"><small>Daily</small><strong>{money(m.daily_rate||m.hourly_rate*8)}</strong></div><div className="compareMetric"><small>Monthly · diesel</small><strong>{money(m.monthly_diesel)}</strong></div><div className="compareMetric"><small>Monthly · no diesel</small><strong>{money(m.monthly_no_diesel)}</strong></div><Button small disabled={m.status!=="free"} onClick={()=>{setBookingType("monthly");setBookingStep(1);setForm(f=>({...f,machine_id:m.id}));setCompareOpen(false);setBookingOpen(true);}}>Select machine</Button></div>)}</div></motion.div></div>}
     </section>
-    <nav className="bottomNav">{tabs.map(([key,icon,label])=><button key={key} className={tab===key?"active":""} onClick={()=>{tapFeedback();setTab(key);}}><span>{icon}</span><small>{label}</small></button>)}</nav>
+    <nav className="bottomNav" aria-label="Main navigation">{tabs.map(([key,icon,label])=><button key={key} type="button" aria-current={tab===key?"page":undefined} aria-label={label} className={tab===key?"active":""} onClick={()=>{tapFeedback();setTab(key);}}><span aria-hidden="true">{icon}</span><small>{label}</small></button>)}</nav>
     <Toasts items={toasts}/>
 
     <AnimatePresence>{noticeOpen&&<div className="overlay" onClick={()=>setNoticeOpen(false)}><motion.div className="sheet" initial={{y:"100%"}} animate={{y:0}} exit={{y:"100%"}} onClick={e=>e.stopPropagation()}><div className="sheetHandle"/><div className="rowBetween"><h2>Notifications</h2><button className="textButton" onClick={()=>setNoticeOpen(false)}>Close</button></div>{notifications.length===0?<Empty icon="🔕" title="All quiet">New booking and payment updates will show here.</Empty>:notifications.map(n=><div className={"notice "+(n.read?"read":"")} key={n.id}><b>{n.title}</b><p>{n.body}</p><small>{new Date(n.created_at).toLocaleString("en-IN")}</small></div>)}</motion.div></div>}</AnimatePresence>
