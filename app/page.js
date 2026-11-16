@@ -4,7 +4,8 @@ import dynamic from "next/dynamic";
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { money, hoursBetween, totalHours, estimateBooking, calculateBill, upiPaymentLink, WORK_TYPES } from "@/lib/domain";
-import { initializeNativeExperience, tapFeedback, shareContent, subscribeNetwork } from "@/lib/native";
+import { initializeNativeExperience, tapFeedback, shareContent, subscribeNetwork, isNative } from "@/lib/native";
+import { Geolocation } from "@capacitor/geolocation";
 import { App } from "@capacitor/app";
 
 const LiveMap = dynamic(() => import("@/components/LiveMap"), { ssr: false, loading: () => <div className="skeleton mapSkeleton"/> });
@@ -253,16 +254,25 @@ export default function Home() {
   };
 
   const startGps=async(b)=>{
-    if(!navigator.geolocation)return say("Location is not supported on this device.","error");
-    try{wakeRef.current=await navigator.wakeLock?.request("screen");}catch{}
-    if(watchRef.current!==null)return;
-    watchRef.current=navigator.geolocation.watchPosition(async(pos)=>{
-      if(Date.now()-lastGpsRef.current<8000)return;lastGpsRef.current=Date.now();
+    const persistPosition=async(pos)=>{
+      if(!pos||Date.now()-lastGpsRef.current<8000)return;lastGpsRef.current=Date.now();
       const {error}=await supabase.from("locations").upsert({booking_id:b.id,lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy_m:pos.coords.accuracy,updated_at:new Date().toISOString()});
       if(error)say("GPS update failed: "+error.message,"error");
-    },()=>say("Allow location access and keep GPS enabled.","error"),{enableHighAccuracy:true,maximumAge:5000,timeout:15000});
+    };
+    try{wakeRef.current=await navigator.wakeLock?.request("screen");}catch{}
+    if(watchRef.current!==null)return;
+    if(isNative()){
+      try{
+        await Geolocation.requestPermissions();
+        const id=await Geolocation.watchPosition({enableHighAccuracy:true,maximumAge:5000,timeout:15000},(pos,error)=>{if(error)say("GPS error: "+error.message,"error");else if(pos)persistPosition(pos);});
+        watchRef.current={native:true,id};
+      }catch(error){say("Allow location access in device settings: "+(error?.message||"permission required"),"error");}
+      return;
+    }
+    if(!navigator.geolocation)return say("Location is not supported on this device.","error");
+    watchRef.current=navigator.geolocation.watchPosition(persistPosition,()=>say("Allow location access and keep GPS enabled.","error"),{enableHighAccuracy:true,maximumAge:5000,timeout:15000});
   };
-  function stopGps(){if(watchRef.current!==null)navigator.geolocation?.clearWatch(watchRef.current);watchRef.current=null;wakeRef.current?.release?.();wakeRef.current=null;}
+  function stopGps(){if(watchRef.current?.native)Geolocation.clearWatch({id:watchRef.current.id}).catch(()=>{});else if(watchRef.current!==null)navigator.geolocation?.clearWatch(watchRef.current);watchRef.current=null;wakeRef.current?.release?.();wakeRef.current=null;}
   useEffect(()=>()=>stopGps(),[]);
   useEffect(()=>{
     if(me?.role!=="driver"||running)return;
