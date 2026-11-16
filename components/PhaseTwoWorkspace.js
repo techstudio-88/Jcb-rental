@@ -14,7 +14,7 @@ function EmptyState({ children }) { return <div className="emptyBox"><b>{childre
 function TextField({ label, ...props }) { return <label className="field"><span>{label}</span><input {...props}/></label>; }
 function SelectField({ label, children, ...props }) { return <label className="field"><span>{label}</span><select {...props}>{children}</select></label>; }
 
-export default function PhaseTwoWorkspace({ tab, me, say, data, refresh }) {
+export default function PhaseTwoWorkspace({ tab, me, say, data, refresh, onNavigate }) {
   const [tickets, setTickets] = useState([]);
   const [messages, setMessages] = useState([]);
   const [activeTicket, setActiveTicket] = useState(null);
@@ -125,6 +125,17 @@ export default function PhaseTwoWorkspace({ tab, me, say, data, refresh }) {
     return () => { alive = false; supabase.removeChannel(channel); };
   }, [tab, activeTicket?.id, say]);
 
+  const reviewChange = async (row, approve) => {
+    if (!isAdmin) return;
+    if (approve) {
+      const bookingUpdate = await supabase.from("bookings").update(row.requested_changes).eq("id", row.booking_id);
+      if (bookingUpdate.error) return say(bookingUpdate.error.message, "error");
+    }
+    const { error } = await supabase.from("booking_change_requests").update({ status: approve ? "approved" : "rejected", reviewed_by: me.id, reviewed_at: new Date().toISOString() }).eq("id", row.id);
+    if (error) return say(error.message, "error");
+    say(approve ? "Booking change approved and applied." : "Change request rejected."); loadWorkspace(); refresh?.();
+  };
+
   const createTicket = async () => {
     if (ticketSubject.trim().length < 4) return say("Add a short subject (at least 4 characters).", "error");
     const { data: row, error } = await supabase.from("support_tickets").insert({ user_id: me.id, subject: ticketSubject.trim(), category: ticketCategory }).select().single();
@@ -232,6 +243,8 @@ export default function PhaseTwoWorkspace({ tab, me, say, data, refresh }) {
     if (error) return say(error.message, "error");
     setReferralPhone(""); say("Referral invitation recorded. Share your code with the customer.", "success"); loadWorkspace();
   };
+
+  if (tab === "more") return <div className="phase2MoreGrid">{(isAdmin ? [["support","Help desk","Review and reply to customer tickets"],["changes","Booking changes","Approve or reject customer change requests"],["service","Maintenance","Plan servicing and machine expenses"],["payroll","Payroll & incentives","Attendance register and operator incentives"],["offers","Coupons","Publish limited-time customer offers"]] : [["changes","Booking changes","Request a change to a pending or confirmed booking"],["reviews","Reviews","Rate completed rentals"],["rewards","Offers & referrals","View coupons and invite customers"],["support","Help & support","Create a ticket and contact the owner"]]).map(([key,title,desc])=><button className="phase2MoreCard" key={key} onClick={()=>onNavigate?.(key)}><b>{title}</b><span>{desc}</span><i>Open →</i></button>)}</div>;
 
   if (tab === "support") return <div className="phase2Grid">
     <Panel title={isAdmin ? "Customer support inbox" : "Help & support"} subtitle="Tickets and replies are stored securely and update live.">
