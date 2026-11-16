@@ -259,6 +259,7 @@ export default function Home() {
     try{setSavedSites(JSON.parse(localStorage.getItem("jcb_sites_"+me.id)||"[]"));}catch{setSavedSites([]);}
   },[me?.id]);
   const toggleFavorite=async(id)=>{
+    if(me?.isDemo)return say("Demo preview is read-only. Sign in with a real account to save machines.");
     const wasSaved=favoriteIds.includes(id);
     const {error}=wasSaved
       ? await supabase.from("machine_favorites").delete().eq("user_id",me.id).eq("machine_id",id)
