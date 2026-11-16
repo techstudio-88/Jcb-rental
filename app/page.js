@@ -1,0 +1,342 @@
+"use client";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { AnimatePresence, motion } from "framer-motion";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
+import { money, hoursBetween, totalHours, estimateBooking, calculateBill, upiPaymentLink, WORK_TYPES } from "@/lib/domain";
+
+const LiveMap = dynamic(() => import("@/components/LiveMap"), { ssr: false, loading: () => <div className="skeleton mapSkeleton"/> });
+const tabsByRole = {
+  customer: [["home","⌂","Home"],["track","⌖","Track"],["bookings","▤","Bookings"],["profile","◉","Profile"]],
+  driver: [["duty","🚜","Duty"],["logs","⛽","Logs"],["profile","◉","Profile"]],
+  admin: [["home","▦","Overview"],["bookings","▤","Bookings"],["fleet","🚜","Fleet"],["finance","₹","Finance"],["team","♙","Team"]],
+};
+const statusLabel = (s) => ({pending:"Pending",confirmed:"Confirmed",active:"Working",done:"Completed",cancelled:"Cancelled",rejected:"Rejected",free:"Available",busy:"Busy",maintenance:"Maintenance",verified:"Verified"}[s] || s);
+const statusClass = (s) => ["confirmed","done","free","verified"].includes(s) ? "good" : ["active","busy"].includes(s) ? "info" : ["cancelled","rejected","maintenance"].includes(s) ? "bad" : "warn";
+const escapeHtml = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const monthValue = () => new Date().toISOString().slice(0,7);
+const formatElapsed = (since, now) => { const s=Math.max(0,Math.floor((now-new Date(since).getTime())/1000)); return String(Math.floor(s/3600)).padStart(2,"0")+":"+String(Math.floor(s/60)%60).padStart(2,"0")+":"+String(s%60).padStart(2,"0"); };
+
+function useToast() {
+  const [items,setItems] = useState([]);
+  const say = useCallback((message,kind="info") => {
+    const id = Date.now() + Math.random();
+    setItems((old)=>[...old,{id,message,kind}]);
+    setTimeout(()=>setItems((old)=>old.filter(x=>x.id!==id)),3600);
+  },[]);
+  return [items,say];
+}
+function Toasts({items}) {
+  return <div className="toasts">{items.map(x=><motion.div key={x.id} className={"toast "+x.kind} initial={{y:-18,opacity:0}} animate={{y:0,opacity:1}} exit={{opacity:0}}>{x.message}</motion.div>)}</div>;
+}
+function Button({children,variant="primary",small=false,...props}) {
+  return <button className={"btn "+variant+(small?" small":"")} {...props}>{children}</button>;
+}
+function Badge({value}) { return <span className={"badge "+statusClass(value)}>{statusLabel(value)}</span>; }
+function Field({label,...props}) { return <label className="field"><span>{label}</span><input {...props}/></label>; }
+function SelectField({label,children,...props}) { return <label className="field"><span>{label}</span><select {...props}>{children}</select></label>; }
+function Card({children,className=""}) { return <section className={"card "+className}>{children}</section>; }
+function Empty({icon="📭",title,children}) { return <div className="emptyBox"><div className="emptyIcon">{icon}</div><b>{title}</b><p>{children}</p></div>; }
+function Stat({label,value,accent}) { return <div className="stat"><span>{label}</span><b className={accent||""}>{value}</b></div>; }
+function Splash() { return <motion.div className="splash" initial={{opacity:1}} exit={{opacity:0,scale:1.04}} transition={{duration:.45}}><motion.div initial={{y:28,opacity:0}} animate={{y:0,opacity:1}} transition={{type:"spring",stiffness:100}} className="splashLogo">🚜</motion.div><div className="splashName">JCB <i>RENTAL</i></div><p>BOOK · TRACK · BILL</p><div className="loadingLine"><i/></div></motion.div>; }
+
+export default function Home() {
+  const [toasts,say] = useToast();
+  const [splash,setSplash] = useState(true);
+  const [session,setSession] = useState(null);
+  const [me,setMe] = useState(null);
+  const [booting,setBooting] = useState(true);
+  const [intro,setIntro] = useState(false);
+  const [slide,setSlide] = useState(0);
+  const [tab,setTab] = useState("home");
+  const [phone,setPhone] = useState("");
+  const [otp,setOtp] = useState("");
+  const [otpSent,setOtpSent] = useState(false);
+  const [busy,setBusy] = useState(false);
+  const [name,setName] = useState("");
+  const [notifications,setNotifications] = useState([]);
+  const [noticeOpen,setNoticeOpen] = useState(false);
+  const [data,setData] = useState({bookings:[],machines:[],logs:[],payments:[],expenses:[],users:[]});
+  const [bookingOpen,setBookingOpen] = useState(false);
+  const [bookingType,setBookingType] = useState("monthly");
+  const [form,setForm] = useState({machine_id:"",site_address:"",work_type:"Digging",start_date:new Date().toISOString().slice(0,10),with_diesel:true,months:1,duration_hours:4,duration_days:1});
+  const [selected,setSelected] = useState(null);
+  const [trackId,setTrackId] = useState(null);
+  const [month,setMonth] = useState(monthValue());
+  const [filter,setFilter] = useState("pending");
+  const [assign,setAssign] = useState({});
+  const [machineForm,setMachineForm] = useState({model:"",reg_no:"",hourly_rate:"",daily_rate:"",monthly_diesel:"",monthly_no_diesel:""});
+  const [machineOpen,setMachineOpen] = useState(false);
+  const [running,setRunning] = useState(null);
+  const [expenseOpen,setExpenseOpen] = useState(null);
+  const [expenseForm,setExpenseForm] = useState({kind:"diesel",litres:"",amount:"",notes:""});
+  const [proof,setProof] = useState(null);
+  const [savingProof,setSavingProof] = useState(false);
+  const [now,setNow] = useState(Date.now());
+  const watchRef = useRef(null);
+  const lastGpsRef = useRef(0);
+  const wakeRef = useRef(null);
+
+  useEffect(()=> {
+    const t=setTimeout(()=>setSplash(false),1900);
+    if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(()=>{});
+    try { setIntro(!localStorage.getItem("jcb_seen")); } catch {}
+    return ()=>clearTimeout(t);
+  },[]);
+  useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t);},[]);
+  const loadProfile = useCallback(async (s) => {
+    if (!s?.user) { setMe(null); setSession(null); setBooting(false); return; }
+    setSession(s);
+    let profile = null;
+    for(let i=0;i<4&&!profile;i++){
+      const {data:row}=await supabase.from("profiles").select("*").eq("id",s.user.id).maybeSingle();
+      profile=row;
+      if(!profile) await new Promise(r=>setTimeout(r,400));
+    }
+    if (!profile) {
+      const {data:row,error}=await supabase.from("profiles").upsert({id:s.user.id,phone:s.user.phone,role:"customer"}).select().maybeSingle();
+      if(!error) profile=row;
+    }
+    setMe(profile);
+    setBooting(false);
+  },[]);
+  useEffect(()=>{
+    if(!isSupabaseConfigured){setBooting(false);return;}
+    supabase.auth.getSession().then(({data})=>loadProfile(data.session));
+    const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,s)=>{setTimeout(()=>loadProfile(s),0);});
+    return ()=>subscription.unsubscribe();
+  },[loadProfile]);
+  const refresh = useCallback(async()=>{
+    if(!me?.id)return;
+    const role=me.role;
+    const jobs=[
+      supabase.from("bookings").select("*,machines(*),customer:profiles!bookings_customer_id_fkey(name,phone),driver:profiles!bookings_driver_id_fkey(name,phone)").order("created_at",{ascending:false}),
+      supabase.from("machines").select("*").order("model"),
+      supabase.from("logbook").select("*,bookings(driver_id,customer_id,machine_id)"),
+      supabase.from("payments").select("*,bookings(machine_id,machines(model),customer:profiles!bookings_customer_id_fkey(name))").order("created_at",{ascending:false}),
+      supabase.from("diesel_logs").select("*,bookings(machine_id,machines(model),driver_id)").order("created_at",{ascending:false}),
+      role==="admin" ? supabase.from("profiles").select("*").order("created_at") : Promise.resolve({data:[]}),
+    ];
+    const results=await Promise.all(jobs);
+    for(const r of results) if(r.error) say(r.error.message,"error");
+    setData({bookings:results[0].data||[],machines:results[1].data||[],logs:results[2].data||[],payments:results[3].data||[],expenses:results[4].data||[],users:results[5].data||[]});
+    const {data:notifs}=await supabase.from("notifications").select("*").order("created_at",{ascending:false}).limit(40);
+    setNotifications(notifs||[]);
+  },[me?.id,me?.role,say]);
+  useEffect(()=>{if(!me?.id)return;refresh();const channel=supabase.channel("app-"+me.id)
+    .on("postgres_changes",{event:"*",schema:"public",table:"bookings"},refresh)
+    .on("postgres_changes",{event:"*",schema:"public",table:"payments"},refresh)
+    .on("postgres_changes",{event:"*",schema:"public",table:"logbook"},refresh)
+    .on("postgres_changes",{event:"*",schema:"public",table:"notifications",filter:"user_id=eq."+me.id},refresh)
+    .subscribe();
+    return()=>supabase.removeChannel(channel);
+  },[me?.id,refresh]);
+  useEffect(()=>{setTab(me?.role==="admin"?"home":me?.role==="driver"?"duty":"home");},[me?.role]);
+
+  const sendOtp=async()=>{
+    if(phone.length!==10)return say("Enter a valid 10-digit mobile number.","error");
+    setBusy(true);const {error}=await supabase.auth.signInWithOtp({phone:"+91"+phone});setBusy(false);
+    if(error)return say(error.message,"error");
+    setOtpSent(true);say("OTP sent. Check your SMS.");
+  };
+  const verifyOtp=async()=>{
+    if(otp.length<4)return say("Enter the OTP you received.","error");
+    setBusy(true);const {data:authData,error}=await supabase.auth.verifyOtp({phone:"+91"+phone,token:otp,type:"sms"});setBusy(false);
+    if(error)return say(error.message,"error");
+    await loadProfile(authData.session);
+  };
+  const saveName=async()=>{
+    if(name.trim().length<2)return say("Enter your full name.","error");
+    const {error}=await supabase.from("profiles").update({name:name.trim()}).eq("id",me.id);
+    if(error)return say(error.message,"error");
+    setMe({...me,name:name.trim()});say("Profile saved.");
+  };
+  const signOut=async()=>{stopGps();await supabase.auth.signOut();setMe(null);setSession(null);};
+  const markNoticesRead=async()=>{
+    await supabase.from("notifications").update({read:true}).eq("user_id",me.id).eq("read",false);
+    setNotifications(old=>old.map(n=>({...n,read:true})));
+  };
+  const updateForm=(k,v)=>setForm(old=>({...old,[k]:v}));
+  const currentMachine=data.machines.find(m=>m.id===form.machine_id);
+  const estimate=estimateBooking(currentMachine,{...form,type:bookingType});
+  const createBooking=async()=>{
+    if(!form.machine_id)return say("Choose a machine first.","error");
+    if(form.site_address.trim().length<5)return say("Enter the complete work-site address.","error");
+    const payload={...form,type:bookingType,customer_id:me.id,quoted_rate:bookingType==="monthly"?(form.with_diesel?currentMachine.monthly_diesel:currentMachine.monthly_no_diesel):bookingType==="daily"?(currentMachine.daily_rate||currentMachine.hourly_rate*8):currentMachine.hourly_rate,status:"pending"};
+    const {error}=await supabase.from("bookings").insert(payload);
+    if(error)return say(error.message,"error");
+    setBookingOpen(false);say("Booking request sent to the owner.");setTab("bookings");refresh();
+  };
+  const cancelBooking=async(b)=>{
+    const {error}=await supabase.from("bookings").update({status:"cancelled"}).eq("id",b.id);
+    if(error)return say(error.message,"error");say("Booking cancelled.");refresh();
+  };
+  const bookingLogs=(id)=>data.logs.filter(l=>l.booking_id===id);
+  const verifiedPaid=(id)=>data.payments.filter(p=>p.booking_id===id&&p.status==="verified").reduce((s,p)=>s+Number(p.amount),0);
+  const allSubmitted=(id)=>data.payments.filter(p=>p.booking_id===id&&p.status!=="rejected").reduce((s,p)=>s+Number(p.amount),0);
+  const billFor=(b)=>calculateBill(b,b.machines,bookingLogs(b.id));
+  const payBalance=async(b,method)=>{
+    const amount=Math.max(0,billFor(b).total-allSubmitted(b.id));
+    if(!amount)return say("No balance is due.");
+    const {error}=await supabase.from("payments").insert({booking_id:b.id,amount:Math.ceil(amount),method,status:"pending"});
+    if(error)return say(error.message,"error");
+    if(method==="UPI"&&process.env.NEXT_PUBLIC_UPI_ID)window.location.href=upiPaymentLink(process.env.NEXT_PUBLIC_UPI_ID,amount,"JCB "+b.id.slice(0,8));
+    say("Payment recorded. The owner will verify it.");setSelected(null);refresh();
+  };
+  const printInvoice=(b)=>{
+    const bill=billFor(b),logs=bookingLogs(b.id),paid=verifiedPaid(b.id);
+    const rows=logs.map(l=>`<tr><td>${escapeHtml(new Date(l.start_at).toLocaleDateString("en-IN"))}</td><td>${escapeHtml(new Date(l.start_at).toLocaleTimeString("en-IN"))}</td><td>${l.end_at?escapeHtml(new Date(l.end_at).toLocaleTimeString("en-IN")):"Running"}</td><td>${hoursBetween(l).toFixed(2)}</td></tr>`).join("");
+    const html=`<!doctype html><html><head><title>JCB Rental Invoice</title><style>body{font:14px Arial;padding:30px;color:#151515}h1{margin-bottom:3px}.line{height:6px;background:#ffb51b;margin:16px 0}table{width:100%;border-collapse:collapse;margin:20px 0}td,th{padding:9px;border-bottom:1px solid #ddd;text-align:left}.total{font-size:20px;font-weight:bold}.row{display:flex;justify-content:space-between;padding:6px 0}</style></head><body><h1>JCB RENTAL</h1><div>Rental service invoice</div><div class="line"></div><div class="row"><span>Invoice #${b.id.slice(0,8).toUpperCase()}</span><span>${new Date().toLocaleDateString("en-IN")}</span></div><p><b>Machine:</b> ${escapeHtml(b.machines?.model)}<br><b>Plan:</b> ${escapeHtml(b.type)}<br><b>Site:</b> ${escapeHtml(b.site_address)}<br><b>Work:</b> ${escapeHtml(b.work_type)}</p><table><tr><th>Date</th><th>Start</th><th>End</th><th>Hours</th></tr>${rows||"<tr><td colspan='4'>No working hours logged</td></tr>"}</table><div class="row"><span>Working hours</span><b>${bill.hours.toFixed(2)}</b></div><div class="row"><span>Rental amount</span><b>${money(bill.base)}</b></div><div class="row"><span>GST (18% estimate)</span><b>${money(bill.tax)}</b></div><div class="row total"><span>Total</span><span>${money(bill.total)}</span></div><div class="row"><span>Verified paid</span><b>${money(paid)}</b></div><div class="row total"><span>Balance</span><span>${money(Math.max(0,bill.total-paid))}</span></div><script>window.onload=()=>window.print()</script></body></html>`;
+    const w=window.open("","_blank");if(!w)return say("Allow pop-ups to print the invoice.","error");w.document.open();w.document.write(html);w.document.close();
+  };
+
+  const startGps=async(b)=>{
+    if(!navigator.geolocation)return say("Location is not supported on this device.","error");
+    try{wakeRef.current=await navigator.wakeLock?.request("screen");}catch{}
+    if(watchRef.current!==null)return;
+    watchRef.current=navigator.geolocation.watchPosition(async(pos)=>{
+      if(Date.now()-lastGpsRef.current<8000)return;lastGpsRef.current=Date.now();
+      const {error}=await supabase.from("locations").upsert({booking_id:b.id,lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy_m:pos.coords.accuracy,updated_at:new Date().toISOString()});
+      if(error)say("GPS update failed: "+error.message,"error");
+    },()=>say("Allow location access and keep GPS enabled.","error"),{enableHighAccuracy:true,maximumAge:5000,timeout:15000});
+  };
+  function stopGps(){if(watchRef.current!==null)navigator.geolocation?.clearWatch(watchRef.current);watchRef.current=null;wakeRef.current?.release?.();wakeRef.current=null;}
+  useEffect(()=>()=>stopGps(),[]);
+  useEffect(()=>{
+    if(me?.role!=="driver"||running)return;
+    const open=data.logs.find(l=>l.bookings?.driver_id===me.id&&!l.end_at);
+    const booking=open&&data.bookings.find(b=>b.id===open.booking_id);
+    if(open&&booking){setRunning({...open,booking});startGps(booking);}
+  },[data.logs,data.bookings,me?.id,me?.role,running]);
+  const startWork=async(b)=>{
+    if(running)return say("End the current duty before starting another.","error");
+    const {data:row,error}=await supabase.from("logbook").insert({booking_id:b.id}).select().single();
+    if(error)return say(error.message,"error");
+    const status=await supabase.from("bookings").update({status:"active"}).eq("id",b.id);
+    if(status.error)say(status.error.message,"error");
+    setRunning({...row,booking:b});startGps(b);say("Work timer started.");refresh();
+  };
+  const endWork=async()=>{
+    if(!running)return;
+    stopGps();
+    const {error}=await supabase.from("logbook").update({end_at:new Date().toISOString()}).eq("id",running.id);
+    if(error)return say(error.message,"error");
+    setRunning(null);say("Work session completed.");refresh();
+  };
+  const saveExpense=async()=>{
+    if(!expenseOpen)return;
+    if(!expenseForm.amount||Number(expenseForm.amount)<=0)return say("Enter a valid amount.","error");
+    if(!proof)return say("Attach a photo of the receipt or proof.","error");
+    setSavingProof(true);
+    const safe=proof.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+    const path=me.id+"/"+Date.now()+"-"+safe;
+    const upload=await supabase.storage.from("proofs").upload(path,proof,{contentType:proof.type,upsert:false});
+    if(upload.error){setSavingProof(false);return say(upload.error.message,"error");}
+    const {error}=await supabase.from("diesel_logs").insert({booking_id:expenseOpen.id,kind:expenseForm.kind,litres:expenseForm.litres?Number(expenseForm.litres):null,amount:Number(expenseForm.amount),photo_path:path,notes:expenseForm.notes||null});
+    setSavingProof(false);
+    if(error)return say(error.message,"error");
+    setExpenseOpen(null);setProof(null);setExpenseForm({kind:"diesel",litres:"",amount:"",notes:""});say("Expense saved with proof.");refresh();
+  };
+  const addMachine=async()=>{
+    if(!machineForm.model.trim())return say("Enter the machine model.","error");
+    const payload=Object.fromEntries(Object.entries(machineForm).map(([k,v])=>[k,["model","reg_no"].includes(k)?v:Number(v||0)]));
+    const {error}=await supabase.from("machines").insert(payload);
+    if(error)return say(error.message,"error");
+    setMachineOpen(false);setMachineForm({model:"",reg_no:"",hourly_rate:"",daily_rate:"",monthly_diesel:"",monthly_no_diesel:""});say("Machine added.");refresh();
+  };
+  const updateMachine=async(m,key,value)=>{
+    const {error}=await supabase.from("machines").update({[key]:key==="status"?value:Number(value)}).eq("id",m.id);
+    if(error)return say(error.message,"error");say("Fleet details updated.");refresh();
+  };
+  const approveBooking=async(b)=>{
+    const driver_id=assign[b.id];if(!driver_id)return say("Select a driver before approving.","error");
+    const {error}=await supabase.from("bookings").update({status:"confirmed",driver_id}).eq("id",b.id);
+    if(error)return say(error.message,"error");
+    await supabase.from("machines").update({status:"busy"}).eq("id",b.machine_id);
+    say("Booking approved and driver assigned.");refresh();
+  };
+  const setBookingStatus=async(b,status)=>{
+    const {error}=await supabase.from("bookings").update({status}).eq("id",b.id);
+    if(error)return say(error.message,"error");
+    if(["done","cancelled","rejected"].includes(status)&&b.machine_id)await supabase.from("machines").update({status:"free"}).eq("id",b.machine_id);
+    say("Booking "+statusLabel(status).toLowerCase()+".");refresh();
+  };
+  const verifyPayment=async(p,status)=>{
+    const {error}=await supabase.from("payments").update({status,verified_at:status==="verified"?new Date().toISOString():null,verified_by:status==="verified"?me.id:null}).eq("id",p.id);
+    if(error)return say(error.message,"error");say("Payment "+status+".");refresh();
+  };
+  const updateRole=async(u,role)=>{
+    const {error}=await supabase.from("profiles").update({role}).eq("id",u.id);
+    if(error)return say(error.message,"error");say("Team role updated.");refresh();
+  };
+  const updateWage=async(u,value)=>{
+    const {error}=await supabase.from("profiles").update({daily_wage:Number(value)||0}).eq("id",u.id);
+    if(error)return say(error.message,"error");say("Daily wage saved.");refresh();
+  };
+
+  const activeBookings=data.bookings.filter(b=>b.status==="active");
+  const currentTrack=activeBookings.find(b=>b.id===trackId)||activeBookings[0];
+  const unread=notifications.filter(n=>!n.read).length;
+  const filteredBookings=data.bookings.filter(b=>filter==="all"||b.status===filter);
+  const monthPayments=data.payments.filter(p=>p.status==="verified"&&p.created_at?.slice(0,7)===month);
+  const monthExpenses=data.expenses.filter(x=>x.created_at?.slice(0,7)===month);
+  const revenue=monthPayments.reduce((s,p)=>s+Number(p.amount),0);
+  const expenses=monthExpenses.reduce((s,p)=>s+Number(p.amount),0);
+  const drivers=data.users.filter(u=>u.role==="driver");
+  const machineReports=data.machines.map(m=>({machine:m,revenue:monthPayments.filter(p=>p.bookings?.machine_id===m.id).reduce((s,p)=>s+Number(p.amount),0),expense:monthExpenses.filter(x=>x.bookings?.machine_id===m.id).reduce((s,x)=>s+Number(x.amount),0)}));
+  const exportCsv=()=>{
+    const rows=[["Machine","Revenue","Diesel/repair","Profit"],...machineReports.map(x=>[x.machine.model,x.revenue,x.expense,x.revenue-x.expense]),["TOTAL",revenue,expenses,revenue-expenses]];
+    const csv=rows.map(row=>row.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(",")).join("\r\n");
+    const url=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));const a=document.createElement("a");a.href=url;a.download="jcb-rental-report-"+month+".csv";a.click();URL.revokeObjectURL(url);
+  };
+  const openProof=async(x)=>{
+    const {data:link,error}=await supabase.storage.from("proofs").createSignedUrl(x.photo_path,300);
+    if(error)return say(error.message,"error");window.open(link.signedUrl,"_blank","noopener,noreferrer");
+  };
+
+  if(!isSupabaseConfigured)return <main className="setupPage"><div className="setupCard"><div className="brandMark">🚜</div><h1>JCB Rental</h1><p>Supabase is not connected yet. Add the project URL and publishable key in Vercel Environment Variables.</p><code>NEXT_PUBLIC_SUPABASE_URL</code><code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code></div></main>;
+  if(booting)return <main className="boot"><div className="loader"/></main>;
+  if(!me)return <main className="authPage"><AnimatePresence>{splash&&<Splash/>}</AnimatePresence>
+    <div className="authCard"><div className="brandMark">🚜</div><div className="eyebrow">JCB RENTAL SERVICE</div><h1>{otpSent?"Verify your number":"Work starts here."}</h1><p>{otpSent?"Enter the one-time code sent to +91 "+phone:"Book machines, manage work and keep every bill in one place."}</p>
+      {!otpSent?<><div className="phoneInput"><span>+91</span><input autoComplete="tel-national" inputMode="numeric" maxLength={10} placeholder="10-digit mobile number" value={phone} onChange={e=>setPhone(e.target.value.replace(/\D/g,""))}/></div><Button disabled={busy} onClick={sendOtp}>{busy?"Sending…":"Send OTP →"}</Button></>:<><input className="otpInput" autoComplete="one-time-code" inputMode="numeric" maxLength={6} placeholder="• • • • • •" value={otp} onChange={e=>setOtp(e.target.value.replace(/\D/g,""))}/><Button disabled={busy} onClick={verifyOtp}>{busy?"Verifying…":"Verify & Continue →"}</Button><button className="textButton" onClick={()=>{setOtpSent(false);setOtp("");}}>Change mobile number</button></>}
+      <div className="authFoot">Secure sign-in with one-time password</div>
+    </div><Toasts items={toasts}/></main>;
+  if(!me.name)return <main className="authPage"><div className="authCard"><div className="brandMark">👋</div><div className="eyebrow">ONE LAST THING</div><h1>What should we call you?</h1><p>Your name will appear on your bookings and profile.</p><input className="input" placeholder="Full name" value={name} onChange={e=>setName(e.target.value)}/><Button onClick={saveName}>Continue →</Button></div><Toasts items={toasts}/></main>;
+
+  const isAdmin=me.role==="admin", isDriver=me.role==="driver";
+  const pageTitle=({home:"Overview",track:"Live tracking",bookings:"My bookings",profile:"My profile",duty:"My duties",logs:"Fuel & repair log",fleet:"Fleet & rates",finance:"Payments & reports",team:"Team & attendance"})[tab]||"JCB Rental";
+  const tabs=tabsByRole[me.role]||tabsByRole.customer;
+  return <main className="appShell">
+    <AnimatePresence>{splash&&<Splash/>}</AnimatePresence>
+    <header className="topbar"><div className="brand"><span className="brandIcon">🚜</span><span>JCB <b>RENTAL</b><small>{isAdmin?"OWNER CONSOLE":isDriver?"OPERATOR APP":"CUSTOMER APP"}</small></span></div><div className="topActions"><button className="iconButton" onClick={()=>{setNoticeOpen(true);markNoticesRead();}} aria-label="Notifications">♧{unread>0&&<i>{unread}</i>}</button><div className="avatar">{me.name.slice(0,1).toUpperCase()}</div></div></header>
+    <div className="pageHead"><div><div className="eyebrow">{new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"})}</div><h1>{pageTitle}</h1></div><div className="welcomeName">Hi, {me.name.split(" ")[0]}</div></div>
+    <section className="content" key={tab}>
+      {tab==="home"&&!isAdmin&&!isDriver&&<div className="customerHome">
+        <div className="hero"><div className="heroText"><span className="eyebrow dark">YOUR NEXT PROJECT STARTS HERE</span><h2>Heavy work.<br/>Made easy.</h2><p>Book the right machine for your site.</p></div><div className="heroMachine">🚜</div></div>
+        <div className="actionGrid"><button onClick={()=>{setBookingType("monthly");setForm(f=>({...f,machine_id:""}));setBookingOpen(true);}}><span>▦</span><b>Monthly plan</b><small>With or without diesel</small></button><button onClick={()=>{setBookingType("hourly");setForm(f=>({...f,machine_id:""}));setBookingOpen(true);}}><span>◷</span><b>Hourly booking</b><small>Pay by working hours</small></button><button onClick={()=>{setBookingType("daily");setForm(f=>({...f,machine_id:""}));setBookingOpen(true);}}><span>☀</span><b>Daily booking</b><small>Book by the day</small></button></div>
+        <div className="sectionTitle"><h2>Your activity</h2><span>{data.bookings.length} bookings</span></div><div className="statsGrid"><Stat label="Active jobs" value={activeBookings.filter(b=>b.customer_id===me.id).length}/><Stat label="Hours logged" value={totalHours(data.logs.filter(l=>l.bookings?.customer_id===me.id)).toFixed(1)}/><Stat label="Balance due" value={money(data.bookings.filter(b=>b.customer_id===me.id&&["confirmed","active","done"].includes(b.status)).reduce((s,b)=>s+Math.max(0,billFor(b).total-allSubmitted(b.id)),0))} accent="goldText"/></div>
+        <div className="sectionTitle"><h2>Available fleet</h2><span>{data.machines.filter(m=>m.status==="free").length} ready</span></div>
+        {data.machines.length===0?<Empty icon="🚜" title="Fleet is being prepared">The owner will add machines and rates here.</Empty>:<div className="machineGrid">{data.machines.map(m=><Card key={m.id} className="machineCard"><div className="machineTop"><span>🚜</span><Badge value={m.status}/></div><h3>{m.model}</h3><p>{m.reg_no||"Registration details pending"}</p><div className="rateRow"><span>Hourly</span><b>{money(m.hourly_rate)}</b></div><div className="rateRow"><span>Daily</span><b>{money(m.daily_rate||m.hourly_rate*8)}</b></div><div className="rateRow"><span>Monthly · diesel</span><b>{money(m.monthly_diesel)}</b></div></Card>)}</div>}
+      </div>}
+      {tab==="track"&&!isAdmin&&!isDriver&&<><Card><div className="sectionTitle"><h2>Machine location</h2>{currentTrack&&<Badge value={currentTrack.status}/>}</div>{activeBookings.filter(b=>b.customer_id===me.id).length>1&&<SelectField label="Active booking" value={trackId||currentTrack?.id||""} onChange={e=>setTrackId(e.target.value)}>{activeBookings.filter(b=>b.customer_id===me.id).map(b=><option key={b.id} value={b.id}>{b.machines?.model} · {b.site_address}</option>)}</SelectField>}{currentTrack?<><LiveMap supabase={supabase} bookingId={currentTrack.id}/><div className="trackDetails"><b>{currentTrack.machines?.model}</b><span>{currentTrack.site_address}</span>{currentTrack.driver&&<a href={"tel:"+currentTrack.driver.phone}>Call operator · {currentTrack.driver.name||currentTrack.driver.phone}</a>}</div></>:<Empty icon="📍" title="No active machine">Live tracking appears here once your booking is approved and the operator starts work.</Empty>}</Card></>}
+      {tab==="bookings"&&!isAdmin&&!isDriver&&<><div className="sectionTitle"><h2>Bookings & bills</h2><span>{data.bookings.filter(b=>b.customer_id===me.id).length} total</span></div>{data.bookings.filter(b=>b.customer_id===me.id).length===0?<Empty icon="🧾" title="No bookings yet">Choose a monthly, daily or hourly plan to get started.</Empty>:data.bookings.filter(b=>b.customer_id===me.id).map(b=><Card key={b.id}><div className="rowBetween"><b>{b.machines?.model||"Machine request"}</b><Badge value={b.status}/></div><p className="muted">{b.type} · {b.start_date} · {b.work_type}</p><p className="muted">📍 {b.site_address}</p>{["confirmed","active","done"].includes(b.status)&&<div className="billMini"><span>{billFor(b).hours.toFixed(1)} working hours</span><b>{money(billFor(b).total)}</b></div>}<div className="buttonRow">{["confirmed","active","done"].includes(b.status)&&<Button small variant="secondary" onClick={()=>setSelected(b)}>View bill</Button>}{b.status==="pending"&&<Button small variant="danger" onClick={()=>cancelBooking(b)}>Cancel request</Button>}</div></Card>)}</>}
+      {tab==="duty"&&isDriver&&<><div className="statsGrid"><Stat label="Assigned duties" value={data.bookings.filter(b=>b.driver_id===me.id).length}/><Stat label="Hours this month" value={totalHours(data.logs.filter(l=>l.bookings?.driver_id===me.id&&l.start_at?.slice(0,7)===monthValue())).toFixed(1)}/><Stat label="Estimated pay" value={money(new Set(data.logs.filter(l=>l.bookings?.driver_id===me.id&&l.start_at?.slice(0,7)===monthValue()).map(l=>l.start_at.slice(0,10))).size*(me.daily_wage||0))}/></div>{data.bookings.filter(b=>b.driver_id===me.id&&["confirmed","active"].includes(b.status)).length===0?<Empty icon="😴" title="No duties assigned">Your owner will assign a machine and site details here.</Empty>:data.bookings.filter(b=>b.driver_id===me.id&&["confirmed","active"].includes(b.status)).map(b=><Card key={b.id} className={running?.booking?.id===b.id?"activeDuty":""}><div className="rowBetween"><b>{b.machines?.model}</b><Badge value={b.status}/></div><p className="muted">{b.machines?.reg_no} · {b.start_date}</p><p>📍 {b.site_address}</p><p className="muted">Work: {b.work_type}</p>{b.customer&&<a href={"tel:"+b.customer.phone}>Call customer · {b.customer.name||b.customer.phone}</a>}{running?.booking?.id===b.id?<div className="liveTimer">{formatElapsed(running.start_at,now)}<small>WORK IN PROGRESS</small></div>:null}<Button onClick={()=>running?.booking?.id===b.id?endWork():startWork(b)} variant={running?.booking?.id===b.id?"danger":"primary"}>{running?.booking?.id===b.id?"■ End work":"▶ Start work"}</Button><Button variant="secondary" onClick={()=>setExpenseOpen(b)}>＋ Diesel / repair entry</Button></Card>)}</>}
+      {tab==="logs"&&isDriver&&<><div className="sectionTitle"><h2>Fuel & repair records</h2></div>{data.expenses.filter(x=>x.bookings?.driver_id===me.id).length===0?<Empty icon="⛽" title="No entries yet">Add diesel or repair records from an assigned duty.</Empty>:data.expenses.filter(x=>x.bookings?.driver_id===me.id).map(x=><Card key={x.id}><div className="rowBetween"><b>{x.kind==="diesel"?"⛽ Diesel":"🔧 Repair"} · {x.bookings?.machines?.model}</b><b>{money(x.amount)}</b></div><p className="muted">{x.litres?x.litres+" litres · ":""}{new Date(x.created_at).toLocaleString("en-IN")}</p>{x.notes&&<p>{x.notes}</p>}<Button variant="secondary" small onClick={()=>openProof(x)}>View photo proof ↗</Button></Card>)}</>}
+      {tab==="profile"&&<Card><div className="profileAvatar">{me.name.slice(0,1).toUpperCase()}</div><h2>{me.name}</h2><p className="muted">{me.phone}</p><Field label="Display name" value={name||me.name} onChange={e=>setName(e.target.value)}/><Button onClick={saveName}>Save profile</Button><div className="divider"/><Button variant="secondary" onClick={signOut}>Sign out</Button></Card>}
+      {tab==="home"&&isDriver&&<Empty icon="🚜" title="Your operator dashboard">Open My Duties to view assigned work, start timers and record expenses.</Empty>}
+      {tab==="home"&&isAdmin&&<><div className="hero adminHero"><div><span className="eyebrow dark">OWNER CONTROL CENTER</span><h2>Fleet at a glance.</h2><p>Bookings, machines, payments and your team.</p></div><span className="heroMachine">🚜</span></div><div className="statsGrid"><Stat label="Pending requests" value={data.bookings.filter(b=>b.status==="pending").length}/><Stat label="Working now" value={data.bookings.filter(b=>b.status==="active").length}/><Stat label="Fleet available" value={data.machines.filter(m=>m.status==="free").length}/><Stat label="Net this month" value={money(revenue-expenses)} accent="goldText"/></div><div className="sectionTitle"><h2>Needs attention</h2><span>{data.payments.filter(p=>p.status==="pending").length} payments</span></div>{data.bookings.filter(b=>b.status==="pending").slice(0,4).map(b=><Card key={b.id}><div className="rowBetween"><b>{b.machines?.model||"Machine"}</b><Badge value="pending"/></div><p className="muted">{b.customer?.name} · {b.site_address}</p><Button small onClick={()=>setTab("bookings")}>Review request</Button></Card>)}{data.bookings.filter(b=>b.status==="pending").length===0&&<Empty icon="✓" title="All caught up">No pending booking requests.</Empty>}</>}
+      {tab==="bookings"&&isAdmin&&<><div className="filterChips">{["pending","confirmed","active","done","rejected","cancelled","all"].map(s=><button key={s} className={filter===s?"selected":""} onClick={()=>setFilter(s)}>{statusLabel(s)}</button>)}</div>{filteredBookings.length===0?<Empty icon="📋" title="Nothing here">No bookings match this filter.</Empty>:filteredBookings.map(b=><Card key={b.id}><div className="rowBetween"><b>{b.machines?.model||"Machine request"}</b><Badge value={b.status}/></div><p className="muted">{b.customer?.name} · {b.customer?.phone}</p><p>📍 {b.site_address}</p><p className="muted">{b.type} · {b.work_type} · {b.start_date}</p>{b.status==="pending"&&<><SelectField label="Assign operator" value={assign[b.id]||""} onChange={e=>setAssign(a=>({...a,[b.id]:e.target.value}))}><option value="">Choose driver</option>{drivers.map(d=><option key={d.id} value={d.id}>{d.name||d.phone}</option>)}</SelectField><div className="buttonRow"><Button small onClick={()=>approveBooking(b)}>Approve & assign</Button><Button small variant="danger" onClick={()=>setBookingStatus(b,"rejected")}>Reject</Button></div></>}{["confirmed","active"].includes(b.status)&&<Button small variant="secondary" onClick={()=>setBookingStatus(b,"done")}>Mark completed</Button>}</Card>)}</>}
+      {tab==="fleet"&&isAdmin&&<><div className="rowBetween sectionTitle"><h2>Machines & rates</h2><Button small onClick={()=>setMachineOpen(true)}>＋ Add machine</Button></div>{data.machines.length===0?<Empty icon="🚜" title="No machines added">Add your first machine with the actual rates and registration number.</Empty>:data.machines.map(m=><Card key={m.id}><div className="rowBetween"><b>{m.model}</b><Badge value={m.status}/></div><p className="muted">{m.reg_no||"No registration number"}</p><SelectField label="Fleet status" value={m.status} onChange={e=>updateMachine(m,"status",e.target.value)}><option value="free">Available</option><option value="busy">Busy</option><option value="maintenance">Maintenance</option></SelectField>{[["hourly_rate","Hourly rate"],["daily_rate","Daily rate"],["monthly_diesel","Monthly with diesel"],["monthly_no_diesel","Monthly without diesel"]].map(([key,label])=><Field key={key} label={label+" (₹)"} type="number" min="0" defaultValue={m[key]} onBlur={e=>Number(e.target.value)!==m[key]&&updateMachine(m,key,e.target.value)}/>)}</Card>)}</>}
+      {tab==="finance"&&isAdmin&&<><div className="sectionTitle"><h2>Financial summary</h2></div><Field label="Report month" type="month" value={month} onChange={e=>setMonth(e.target.value)}/><div className="statsGrid"><Stat label="Verified revenue" value={money(revenue)}/><Stat label="Fuel & repairs" value={money(expenses)}/><Stat label="Net total" value={money(revenue-expenses)} accent="goldText"/></div><div className="sectionTitle"><h2>Payment verification</h2></div>{data.payments.filter(p=>p.status==="pending").length===0?<Empty icon="✓" title="No pending payments">Submitted payments will appear here for verification.</Empty>:data.payments.filter(p=>p.status==="pending").map(p=><Card key={p.id}><div className="rowBetween"><b>{money(p.amount)} · {p.method}</b><Badge value={p.status}/></div><p className="muted">{p.bookings?.customer?.name} · {p.bookings?.machines?.model}</p><p className="muted">Submitted {new Date(p.created_at).toLocaleString("en-IN")}</p><div className="buttonRow"><Button small onClick={()=>verifyPayment(p,"verified")}>Verify payment</Button><Button small variant="danger" onClick={()=>verifyPayment(p,"rejected")}>Reject</Button></div></Card>)}<div className="sectionTitle"><h2>Machine-wise profit</h2><Button small variant="secondary" onClick={exportCsv}>Export CSV ↓</Button></div>{machineReports.map(x=><Card key={x.machine.id}><div className="rowBetween"><b>{x.machine.model}</b><b>{money(x.revenue-x.expense)}</b></div><div className="rateRow"><span>Revenue</span><b>{money(x.revenue)}</b></div><div className="rateRow"><span>Diesel & repair</span><b>{money(x.expense)}</b></div></Card>)}</>}
+      {tab==="team"&&isAdmin&&<><div className="sectionTitle"><h2>Team & attendance</h2><span>{data.users.length} accounts</span></div>{data.users.map(u=>{const userLogs=data.logs.filter(l=>l.bookings?.driver_id===u.id&&l.start_at?.slice(0,7)===month);const days=new Set(userLogs.map(l=>l.start_at.slice(0,10))).size;return <Card key={u.id}><div className="rowBetween"><b>{u.name||"New user"}</b><span className="muted">{u.phone}</span></div><SelectField label="Role" value={u.role} disabled={u.id===me.id} onChange={e=>updateRole(u,e.target.value)}><option value="customer">Customer</option><option value="driver">Driver</option><option value="admin">Admin</option></SelectField>{u.role==="driver"&&<><Field label="Daily wage (₹)" type="number" min="0" defaultValue={u.daily_wage} onBlur={e=>Number(e.target.value)!==u.daily_wage&&updateWage(u,e.target.value)}/><div className="statsGrid"><Stat label="Attendance days" value={days}/><Stat label="Working hours" value={totalHours(userLogs).toFixed(1)}/><Stat label="Salary estimate" value={money(days*(u.daily_wage||0))}/></div></>}</Card>})}</>}
+    </section>
+    <nav className="bottomNav">{tabs.map(([key,icon,label])=><button key={key} className={tab===key?"active":""} onClick={()=>setTab(key)}><span>{icon}</span><small>{label}</small></button>)}</nav>
+    <Toasts items={toasts}/>
+
+    <AnimatePresence>{noticeOpen&&<div className="overlay" onClick={()=>setNoticeOpen(false)}><motion.div className="sheet" initial={{y:"100%"}} animate={{y:0}} exit={{y:"100%"}} onClick={e=>e.stopPropagation()}><div className="sheetHandle"/><div className="rowBetween"><h2>Notifications</h2><button className="textButton" onClick={()=>setNoticeOpen(false)}>Close</button></div>{notifications.length===0?<Empty icon="🔕" title="All quiet">New booking and payment updates will show here.</Empty>:notifications.map(n=><div className={"notice "+(n.read?"read":"")} key={n.id}><b>{n.title}</b><p>{n.body}</p><small>{new Date(n.created_at).toLocaleString("en-IN")}</small></div>)}</motion.div></div>}</AnimatePresence>
+    <AnimatePresence>{bookingOpen&&<div className="overlay" onClick={()=>setBookingOpen(false)}><motion.div className="sheet" initial={{y:"100%"}} animate={{y:0}} exit={{y:"100%"}} onClick={e=>e.stopPropagation()}><div className="sheetHandle"/><div className="rowBetween"><h2>{bookingType==="monthly"?"Monthly plan":bookingType==="daily"?"Daily booking":"Hourly booking"}</h2><button className="textButton" onClick={()=>setBookingOpen(false)}>Close</button></div><div className="stepDots"><i className="on"/><i className="on"/><i className="on"/></div><SelectField label="Choose machine" value={form.machine_id} onChange={e=>updateForm("machine_id",e.target.value)}><option value="">Select machine</option>{data.machines.filter(m=>m.status==="free").map(m=><option key={m.id} value={m.id}>{m.model} · {money(m.hourly_rate)}/hr</option>)}</SelectField><Field label="Work site address" placeholder="Full address / village / landmark" value={form.site_address} onChange={e=>updateForm("site_address",e.target.value)}/><SelectField label="Type of work" value={form.work_type} onChange={e=>updateForm("work_type",e.target.value)}>{WORK_TYPES.map(w=><option key={w}>{w}</option>)}</SelectField><Field label="Start date" type="date" value={form.start_date} onChange={e=>updateForm("start_date",e.target.value)}/>{bookingType==="monthly"?<><Field label="Number of months" type="number" min="1" max="36" value={form.months} onChange={e=>updateForm("months",e.target.value)}/><div className="segmented"><button className={form.with_diesel?"on":""} onClick={()=>updateForm("with_diesel",true)}>With diesel</button><button className={!form.with_diesel?"on":""} onClick={()=>updateForm("with_diesel",false)}>Without diesel</button></div></>:bookingType==="daily"?<Field label="Number of days" type="number" min="1" value={form.duration_days} onChange={e=>updateForm("duration_days",e.target.value)}/>:<Field label="Estimated hours" type="number" min="1" step=".5" value={form.duration_hours} onChange={e=>updateForm("duration_hours",e.target.value)}/>}<div className="estimate"><span>Estimated rental (before GST)</span><b>{money(estimate)}</b><small>Final invoice is calculated from approved rates and logged work.</small></div><Button onClick={createBooking}>Send booking request →</Button></motion.div></div>}</AnimatePresence>
+    <AnimatePresence>{selected&&<div className="overlay" onClick={()=>setSelected(null)}><motion.div className="sheet" initial={{y:"100%"}} animate={{y:0}} exit={{y:"100%"}} onClick={e=>e.stopPropagation()}><div className="sheetHandle"/><div className="rowBetween"><h2>Logbook & bill</h2><button className="textButton" onClick={()=>setSelected(null)}>Close</button></div><Card><div className="rowBetween"><b>{selected.machines?.model}</b><Badge value={selected.status}/></div>{bookingLogs(selected.id).map(l=><div className="rateRow" key={l.id}><span>{new Date(l.start_at).toLocaleDateString("en-IN")} · {new Date(l.start_at).toLocaleTimeString("en-IN")}</span><b>{hoursBetween(l).toFixed(2)} h</b></div>)}</Card><Card>{[["Total hours",billFor(selected).hours.toFixed(2)],["Rental",money(billFor(selected).base)],["GST estimate (18%)",money(billFor(selected).tax)],["Total",money(billFor(selected).total)],["Submitted payments",money(allSubmitted(selected.id))],["Verified paid",money(verifiedPaid(selected.id))],["Balance",money(Math.max(0,billFor(selected).total-allSubmitted(selected.id)))]].map(([l,v])=><div className="rateRow" key={l}><span>{l}</span><b>{v}</b></div>)}</Card>{Math.max(0,billFor(selected).total-allSubmitted(selected.id))>0&&<><h3>Submit payment</h3>{["UPI","Bank","Cash"].map(m=><Button key={m} variant="secondary" onClick={()=>payBalance(selected,m)}>Pay / record via {m}</Button>)}</>}<Button onClick={()=>printInvoice(selected)}>Print / save invoice PDF ↓</Button></motion.div></div>}</AnimatePresence>
+    <AnimatePresence>{machineOpen&&<div className="overlay" onClick={()=>setMachineOpen(false)}><motion.div className="sheet" initial={{y:"100%"}} animate={{y:0}} exit={{y:"100%"}} onClick={e=>e.stopPropagation()}><div className="sheetHandle"/><h2>Add machine</h2>{[["model","Machine model"],["reg_no","Registration number"],["hourly_rate","Hourly rate ₹"],["daily_rate","Daily rate ₹"],["monthly_diesel","Monthly with diesel ₹"],["monthly_no_diesel","Monthly without diesel ₹"]].map(([k,l])=><Field key={k} label={l} type={k.includes("rate")||k.includes("monthly")?"number":"text"} value={machineForm[k]} onChange={e=>setMachineForm(f=>({...f,[k]:e.target.value}))}/>)}<Button onClick={addMachine}>Save machine</Button></motion.div></div>}</AnimatePresence>
+    <AnimatePresence>{expenseOpen&&<div className="overlay" onClick={()=>setExpenseOpen(null)}><motion.div className="sheet" initial={{y:"100%"}} animate={{y:0}} exit={{y:"100%"}} onClick={e=>e.stopPropagation()}><div className="sheetHandle"/><h2>Fuel / repair record</h2><div className="segmented"><button className={expenseForm.kind==="diesel"?"on":""} onClick={()=>setExpenseForm(f=>({...f,kind:"diesel"}))}>⛽ Diesel</button><button className={expenseForm.kind==="repair"?"on":""} onClick={()=>setExpenseForm(f=>({...f,kind:"repair"}))}>🔧 Repair</button></div>{expenseForm.kind==="diesel"&&<Field label="Litres" type="number" min="0" value={expenseForm.litres} onChange={e=>setExpenseForm(f=>({...f,litres:e.target.value}))}/>}<Field label="Amount (₹)" type="number" min="1" value={expenseForm.amount} onChange={e=>setExpenseForm(f=>({...f,amount:e.target.value}))}/><Field label="Notes (optional)" value={expenseForm.notes} onChange={e=>setExpenseForm(f=>({...f,notes:e.target.value}))}/><label className="uploadBox">📷 Add photo proof<input type="file" accept="image/*" capture="environment" onChange={e=>setProof(e.target.files?.[0]||null)}/><small>{proof?.name||"Camera or gallery · required"}</small></label><Button disabled={savingProof} onClick={saveExpense}>{savingProof?"Uploading…":"Save expense with proof"}</Button></motion.div></div>}</AnimatePresence>
+  </main>;
+}
