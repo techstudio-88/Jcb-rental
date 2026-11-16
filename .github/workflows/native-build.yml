@@ -63,6 +63,7 @@ jobs:
       - run: npm install
       - run: npm run build
       - run: npx cap add ios
+      - run: /usr/libexec/PlistBuddy -c 'Add :NSLocationWhenInUseUsageDescription string JCB Rental uses your location during an active assigned job so customers can see the machine location.' ios/App/App/Info.plist
       - run: npx cap sync ios
       - run: xcodebuild -workspace ios/App/App.xcworkspace -scheme App -destination 'generic/platform=iOS' -archivePath build/JCBRental.xcarchive archive CODE_SIGNING_ALLOWED=NO
       - uses: actions/upload-artifact@v4
