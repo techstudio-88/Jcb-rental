@@ -29,8 +29,10 @@ jobs:
           path: out/
 
   android:
-    name: Android debug APK
+    name: Android release candidate (demo disabled, unsigned)
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_ENABLE_DEMO_LOGIN: "false"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -42,19 +44,24 @@ jobs:
           java-version: 21
       - run: npm install
       - run: npm run build
+      - run: npm run release:preflight -- --web
       - run: npx cap add android
       - run: npx cap sync android
       - run: cd android && ./gradlew assembleDebug bundleRelease
+      - run: npm run release:preflight -- --android
       - uses: actions/upload-artifact@v4
         with:
-          name: jcb-rental-android-debug
+          name: jcb-rental-android-unsigned-release-candidate
+          retention-days: 14
           path: |
             android/app/build/outputs/apk/debug/app-debug.apk
             android/app/build/outputs/bundle/release/app-release.aab
 
   ios-simulator:
-    name: iOS simulator build (unsigned)
+    name: iOS release candidate (demo disabled, unsigned)
     runs-on: macos-latest
+    env:
+      NEXT_PUBLIC_ENABLE_DEMO_LOGIN: "false"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -66,7 +73,9 @@ jobs:
       - run: /usr/libexec/PlistBuddy -c 'Add :NSLocationWhenInUseUsageDescription string JCB Rental uses your location during an active assigned job so customers can see the machine location.' ios/App/App/Info.plist
       - run: npx cap sync ios
       - run: xcodebuild -workspace ios/App/App.xcworkspace -scheme App -destination 'generic/platform=iOS' -archivePath build/JCBRental.xcarchive archive CODE_SIGNING_ALLOWED=NO
+      - run: npm run release:preflight -- --ios
       - uses: actions/upload-artifact@v4
         with:
-          name: jcb-rental-ios-unsigned-archive
+          name: jcb-rental-ios-unsigned-release-candidate
+          retention-days: 14
           path: build/JCBRental.xcarchive
