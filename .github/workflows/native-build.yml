@@ -23,6 +23,7 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm run build
+      - run: npm run release:preflight -- --web
       - uses: actions/upload-artifact@v4
         with:
           name: jcb-rental-web-export
