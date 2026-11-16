@@ -420,3 +420,22 @@ button,.btn{ -webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .authModeToggle{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:5px;border:1px solid var(--line,#30343a);border-radius:13px;background:#ffffff06;margin:14px 0}
 .authModeToggle button{min-height:38px;border:0;border-radius:9px;background:transparent;color:var(--muted,#9aa3ad);font-weight:750;font-size:12px}
 .authModeToggle button.selected{background:#ffb51b;color:#211706;box-shadow:0 4px 14px #ffb51b33}
+
+
+/* Ember UI: machine imagery and owner subscription plans */
+.machineVisual>img{position:relative;z-index:1;width:100%;height:100%;object-fit:cover;display:block;filter:saturate(.92)}
+.machineVisual:has(>img){background:#191d23}
+.subscriptionPlanGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:stretch}
+.subscriptionPlanCard{padding:17px;min-width:0;display:flex;flex-direction:column;gap:8px}
+.subscriptionPlanCard.featured{border-color:#a8792a;background:linear-gradient(160deg,#302617,#1a1f26 60%)}
+.subscriptionPlanCard h2{font:700 21px 'Space Grotesk';margin:5px 0 0}
+.subscriptionPlanCard p{font-size:11px;line-height:1.5;margin:0}
+.subscriptionPlanCard .planPrice{display:flex;align-items:baseline;gap:5px;margin:8px 0}
+.planPrice b{font:700 27px 'Space Grotesk';color:var(--yellow)}
+.planPrice span{font-size:10px;color:var(--muted)}
+.subscriptionPlanCard ul{list-style:none;padding:0;margin:6px 0 10px;display:grid;gap:8px;flex:1}
+.subscriptionPlanCard li{font-size:11px;line-height:1.4;color:#d6dbe1}
+.subscriptionPlanCard li::first-letter{color:var(--yellow)}
+.subscriptionPlanCard .btn{margin-top:auto}
+.currentPlanCard{border-color:#6d552b;background:linear-gradient(120deg,#2b2418,#1b2027)}
+@media(max-width:760px){.subscriptionPlanGrid{grid-template-columns:1fr}.subscriptionPlanCard{padding:16px}.subscriptionPlanCard h2{font-size:19px}}
