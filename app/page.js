@@ -105,6 +105,7 @@ function MachineIllustration({compact=false}) {
 export default function Home() {
   const [toasts,say] = useToast();
   const [splash,setSplash] = useState(true);
+  const [theme,setTheme] = useState("dark");
   const [session,setSession] = useState(null);
   const [demoMode,setDemoMode] = useState(false);
   const [demoLogin,setDemoLogin] = useState(true);
@@ -144,6 +145,7 @@ export default function Home() {
   const [machineOpen,setMachineOpen] = useState(false);
   const [running,setRunning] = useState(null);
   const [celebration,setCelebration] = useState(0);
+  const [successNotice,setSuccessNotice] = useState(null);
   const [installPrompt,setInstallPrompt] = useState(null);
   const [nativeInfo,setNativeInfo] = useState({native:false,platform:"web"});
   const [online,setOnline] = useState(true);
@@ -156,6 +158,13 @@ export default function Home() {
   const lastGpsRef = useRef(0);
   const wakeRef = useRef(null);
 
+  useEffect(()=>{
+    try{const saved=localStorage.getItem("jcb_theme");if(saved==="light"||saved==="dark")setTheme(saved);}catch{}
+  },[]);
+  useEffect(()=>{
+    document.documentElement.dataset.theme=theme;
+    try{localStorage.setItem("jcb_theme",theme);}catch{}
+  },[theme]);
   useEffect(()=> {
     const t=setTimeout(()=>setSplash(false),1900);
     const installHandler=(event)=>{event.preventDefault();setInstallPrompt(event);};
@@ -335,7 +344,7 @@ export default function Home() {
     const payload={...form,type:bookingType,customer_id:me.id,quoted_rate:bookingType==="monthly"?(form.with_diesel?currentMachine.monthly_diesel:currentMachine.monthly_no_diesel):bookingType==="daily"?(currentMachine.daily_rate||currentMachine.hourly_rate*8):currentMachine.hourly_rate,status:"pending"};
     const {error}=await supabase.from("bookings").insert(payload);
     if(error)return say(error.message,"error");
-    setBookingOpen(false);setCelebration(x=>x+1);successFeedback();say("Booking request sent to the owner.");setTab("bookings");refresh();
+    setBookingOpen(false);setCelebration(x=>x+1);setSuccessNotice({title:"Booking request sent",body:"Your machine request is on its way to the rental owner. You can follow every update in Bookings."});successFeedback();say("Booking request sent to the owner.");setTab("bookings");refresh();
   };
   const cancelBooking=async(b)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     const {error}=await supabase.from("bookings").update({status:"cancelled"}).eq("id",b.id);
@@ -351,7 +360,7 @@ export default function Home() {
     const {error}=await supabase.from("payments").insert({booking_id:b.id,amount:Math.ceil(amount),method,status:"pending"});
     if(error)return say(error.message,"error");
     if(method==="UPI"&&process.env.NEXT_PUBLIC_UPI_ID)window.location.href=upiPaymentLink(process.env.NEXT_PUBLIC_UPI_ID,amount,"JCB "+b.id.slice(0,8));
-    setCelebration(x=>x+1);successFeedback();say("Payment recorded. The owner will verify it.");setSelected(null);refresh();
+    setCelebration(x=>x+1);setSuccessNotice({title:"Payment submitted",body:"Your payment has been recorded. The owner will verify it and update your booking balance."});successFeedback();say("Payment recorded. The owner will verify it.");setSelected(null);refresh();
   };
   const printInvoice=(b)=>{
     const bill=billFor(b),logs=bookingLogs(b.id),paid=verifiedPaid(b.id);
@@ -558,7 +567,7 @@ export default function Home() {
   return <main className="appShell">
     {me.isDemo&&<div style={{padding:"9px 14px",textAlign:"center",fontSize:12,background:"#fff1c2",color:"#624300",fontWeight:700}}>TEMPORARY DEMO MODE · {me.role==="admin"?"Owner / Admin":me.role==="driver"?"Driver":"Customer"} view · Changes are not saved</div>}
     <AnimatePresence>{splash&&<Splash/>}</AnimatePresence><ConfettiBurst fire={celebration}/>
-    <header className="topbar"><div className="brand"><span className="brandIcon">🚜</span><span>JCB <b>RENTAL</b><small>{isAdmin?"OWNER CONSOLE":isDriver?"OPERATOR APP":"CUSTOMER APP"}</small></span></div><div className="topActions">{installPrompt&&<button className="iconButton" onClick={installApp} aria-label="Install app">↓</button>}{!online&&<span className="networkPill" role="status">OFFLINE</span>}<button className="iconButton" onClick={()=>{tapFeedback();setNoticeOpen(true);markNoticesRead();}} aria-label="Notifications">♧{unread>0&&<i>{unread}</i>}</button><div className="profileMenuWrap"><button type="button" className={"avatar profileMenuTrigger"+(profileMenuOpen?" isOpen":"")} aria-label="Open account menu" aria-haspopup="menu" aria-expanded={profileMenuOpen} onClick={()=>{tapFeedback();setProfileMenuOpen(v=>!v);}}>{(me.name||"D").slice(0,1).toUpperCase()}</button><AnimatePresence>{profileMenuOpen&&<motion.div className="profileMenu" role="menu" initial={{opacity:0,y:-8,scale:.97}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-8,scale:.97}} transition={{duration:.16}}><div className="profileMenuHead"><div className="profileMenuAvatar">{(me.name||"D").slice(0,1).toUpperCase()}</div><div><b>{me.name||"Account"}</b><small>{me.phone||"Signed in"} · {isAdmin?"Owner":isDriver?"Operator":"Customer"}</small></div></div><div className="profileMenuLabel">GO TO PAGE</div>{(tabsByRole[me.role]||[]).map(([key,icon,label])=><button type="button" role="menuitem" key={key} className={"profileMenuItem"+(tab===key?" active":"")} onClick={()=>{setTab(key);setProfileMenuOpen(false);}}><span>{icon}</span>{label}{tab===key&&<i>Current</i>}</button>)}<div className="profileMenuDivider"/><button type="button" role="menuitem" className="profileMenuSignout" onClick={()=>{setProfileMenuOpen(false);signOut();}}>↪ <span>Sign out</span></button></motion.div>}</AnimatePresence></div></div></header>
+    <header className="topbar"><div className="brand"><span className="brandIcon">🚜</span><span>JCB <b>RENTAL</b><small>{isAdmin?"OWNER CONSOLE":isDriver?"OPERATOR APP":"CUSTOMER APP"}</small></span></div><div className="topActions">{installPrompt&&<button className="iconButton" onClick={installApp} aria-label="Install app">↓</button>}<button className="iconButton themeToggle" type="button" onClick={()=>setTheme(v=>v==="dark"?"light":"dark")} aria-label={theme==="dark"?"Switch to light theme":"Switch to dark theme"} title={theme==="dark"?"Light appearance":"Dark appearance"}>{theme==="dark"?"☼":"☾"}</button>{!online&&<span className="networkPill" role="status">OFFLINE</span>}<button className="iconButton" onClick={()=>{tapFeedback();setNoticeOpen(true);markNoticesRead();}} aria-label="Notifications">♧{unread>0&&<i>{unread}</i>}</button><div className="profileMenuWrap"><button type="button" className={"avatar profileMenuTrigger"+(profileMenuOpen?" isOpen":"")} aria-label="Open account menu" aria-haspopup="menu" aria-expanded={profileMenuOpen} onClick={()=>{tapFeedback();setProfileMenuOpen(v=>!v);}}>{(me.name||"D").slice(0,1).toUpperCase()}</button><AnimatePresence>{profileMenuOpen&&<motion.div className="profileMenu" role="menu" initial={{opacity:0,y:-8,scale:.97}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:-8,scale:.97}} transition={{duration:.16}}><div className="profileMenuHead"><div className="profileMenuAvatar">{(me.name||"D").slice(0,1).toUpperCase()}</div><div><b>{me.name||"Account"}</b><small>{me.phone||"Signed in"} · {isAdmin?"Owner":isDriver?"Operator":"Customer"}</small></div></div><div className="profileMenuLabel">GO TO PAGE</div>{(tabsByRole[me.role]||[]).map(([key,icon,label])=><button type="button" role="menuitem" key={key} className={"profileMenuItem"+(tab===key?" active":"")} onClick={()=>{setTab(key);setProfileMenuOpen(false);}}><span>{icon}</span>{label}{tab===key&&<i>Current</i>}</button>)}<div className="profileMenuDivider"/><button type="button" role="menuitem" className="profileMenuSignout" onClick={()=>{setProfileMenuOpen(false);signOut();}}>↪ <span>Sign out</span></button></motion.div>}</AnimatePresence></div></div></header>
     <div className="pageHead"><div><div className="eyebrow">{new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"})}</div><h1>{pageTitle}</h1></div><div className="welcomeName">Hi, {me.name.split(" ")[0]}</div></div>
     <section className="content" key={tab}>
       <PhaseTwoWorkspace tab={tab} me={me} say={say} data={data} refresh={refresh} onNavigate={setTab}/>
@@ -599,6 +608,15 @@ export default function Home() {
       {compareOpen&&<div className="overlay compareOverlay" onClick={()=>setCompareOpen(false)}><motion.div className="sheet compareSheet" initial={{y:"100%"}} animate={{y:0}} exit={{y:"100%"}} onClick={e=>e.stopPropagation()}><div className="sheetHandle"/><div className="rowBetween"><div><div className="eyebrow">SIDE-BY-SIDE</div><h2>Compare machines</h2></div><button className="textButton" onClick={()=>setCompareOpen(false)}>Close</button></div><div className="compareGrid">{compareMachines.map(m=><div className="compareColumn" key={m.id}><div className="compareMachineIcon"><MachineIllustration compact/></div><b>{m.model}</b><Badge value={m.status}/><div className="compareMetric"><small>Hourly</small><strong>{money(m.hourly_rate)}</strong></div><div className="compareMetric"><small>Daily</small><strong>{money(m.daily_rate||m.hourly_rate*8)}</strong></div><div className="compareMetric"><small>Monthly · diesel</small><strong>{money(m.monthly_diesel)}</strong></div><div className="compareMetric"><small>Monthly · no diesel</small><strong>{money(m.monthly_no_diesel)}</strong></div><Button small disabled={m.status!=="free"} onClick={()=>{setBookingType("monthly");setBookingStep(1);setForm(f=>({...f,machine_id:m.id}));setCompareOpen(false);setBookingOpen(true);}}>Select machine</Button></div>)}</div></motion.div></div>}
     </section>
     <nav className="bottomNav" aria-label="Main navigation">{tabs.map(([key,icon,label])=><button key={key} type="button" aria-current={tab===key?"page":undefined} aria-label={label} className={tab===key?"active":""} onClick={()=>{tapFeedback();setTab(key);}}><span aria-hidden="true">{icon}</span><small>{label}</small></button>)}</nav>
+    <AnimatePresence>{successNotice&&<div className="successOverlay" role="dialog" aria-modal="true" aria-labelledby="success-title">
+      <motion.div className="successDialog" initial={{opacity:0,scale:.82,y:22}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:.94,y:12}} transition={{type:"spring",stiffness:260,damping:22}}>
+        <motion.div className="successMark" initial={{scale:0,rotate:-35}} animate={{scale:1,rotate:0}} transition={{delay:.12,type:"spring",stiffness:320,damping:14}}>✓</motion.div>
+        <span className="successKicker">JCB RENTAL · CONFIRMED</span>
+        <h2 id="success-title">{successNotice.title}</h2>
+        <p>{successNotice.body}</p>
+        <Button onClick={()=>setSuccessNotice(null)}>Continue</Button>
+      </motion.div>
+    </div>}</AnimatePresence>
     <Toasts items={toasts}/>
 
     <AnimatePresence>{noticeOpen&&<div className="overlay" onClick={()=>setNoticeOpen(false)}><motion.div className="sheet" initial={{y:"100%"}} animate={{y:0}} exit={{y:"100%"}} onClick={e=>e.stopPropagation()}><div className="sheetHandle"/><div className="rowBetween"><h2>Notifications</h2><button className="textButton" onClick={()=>setNoticeOpen(false)}>Close</button></div>{notifications.length===0?<Empty icon="🔕" title="All quiet">New booking and payment updates will show here.</Empty>:notifications.map(n=><div className={"notice "+(n.read?"read":"")} key={n.id}><b>{n.title}</b><p>{n.body}</p><small>{new Date(n.created_at).toLocaleString("en-IN")}</small></div>)}</motion.div></div>}</AnimatePresence>
