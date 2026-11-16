@@ -42,7 +42,24 @@ function Field({label,...props}) { return <label className="field"><span>{label}
 function SelectField({label,children,...props}) { return <label className="field"><span>{label}</span><select {...props}>{children}</select></label>; }
 function Card({children,className=""}) { return <section className={"card "+className}>{children}</section>; }
 function Empty({icon="📭",title,children}) { return <div className="emptyBox"><div className="emptyIcon">{icon}</div><b>{title}</b><p>{children}</p></div>; }
-function Stat({label,value,accent}) { return <div className="stat"><span>{label}</span><b className={accent||""}>{value}</b></div>; }
+function CountUp({value}) {
+  const target=Number(value)||0;
+  const [shown,setShown]=useState(0);
+  useEffect(()=>{
+    const start=Date.now(),duration=720;
+    const timer=setInterval(()=>{const p=Math.min(1,(Date.now()-start)/duration);setShown(target*p);if(p>=1)clearInterval(timer);},16);
+    return()=>clearInterval(timer);
+  },[target]);
+  return <>{Number.isInteger(target)?Math.round(shown).toLocaleString("en-IN"):shown.toFixed(1)}</>;
+}
+function Stat({label,value,accent}) {
+  const numeric=typeof value==="number"||(typeof value==="string"&&value.trim()!==""&&Number.isFinite(Number(value)));
+  return <div className="stat"><span>{label}</span><b className={accent||""}>{numeric?<CountUp value={value}/>:value}</b></div>;
+}
+function ConfettiBurst({fire}) {
+  const pieces=Array.from({length:28},(_,i)=>({left:((i*37)%97)+1,delay:(i%7)*.045,rotation:(i*71)%620,color:["#ffb51b","#46c58b","#66a9ff","#ff7777","#ffffff"][i%5]}));
+  return <AnimatePresence>{fire>0&&<motion.div key={fire} className="confettiLayer" initial={{opacity:1}} animate={{opacity:0}} transition={{delay:1.15,duration:.5}}>{pieces.map((p,i)=><motion.i key={i} initial={{y:-20,rotate:0,opacity:1}} animate={{y:"105vh",rotate:p.rotation,opacity:0}} transition={{duration:1.5,delay:p.delay,ease:"easeOut"}} style={{left:p.left+"%",background:p.color}}/>)}</motion.div>}</AnimatePresence>;
+}
 function Splash() { return <motion.div className="splash" initial={{opacity:1}} exit={{opacity:0,scale:1.04}} transition={{duration:.45}}><motion.div initial={{y:28,opacity:0}} animate={{y:0,opacity:1}} transition={{type:"spring",stiffness:100}} className="splashLogo">🚜</motion.div><div className="splashName">JCB <i>RENTAL</i></div><p>BOOK · TRACK · BILL</p><div className="loadingLine"><i/></div></motion.div>; }
 
 export default function Home() {
@@ -74,6 +91,8 @@ export default function Home() {
   const [machineForm,setMachineForm] = useState({model:"",reg_no:"",hourly_rate:"",daily_rate:"",monthly_diesel:"",monthly_no_diesel:""});
   const [machineOpen,setMachineOpen] = useState(false);
   const [running,setRunning] = useState(null);
+  const [celebration,setCelebration] = useState(0);
+  const [installPrompt,setInstallPrompt] = useState(null);
   const [expenseOpen,setExpenseOpen] = useState(null);
   const [expenseForm,setExpenseForm] = useState({kind:"diesel",litres:"",amount:"",notes:""});
   const [proof,setProof] = useState(null);
@@ -85,9 +104,11 @@ export default function Home() {
 
   useEffect(()=> {
     const t=setTimeout(()=>setSplash(false),1900);
+    const installHandler=(event)=>{event.preventDefault();setInstallPrompt(event);};
+    window.addEventListener("beforeinstallprompt",installHandler);
     if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(()=>{});
     try { setIntro(!localStorage.getItem("jcb_seen")); } catch {}
-    return ()=>clearTimeout(t);
+    return ()=>{clearTimeout(t);window.removeEventListener("beforeinstallprompt",installHandler);};
   },[]);
   useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),1000);return()=>clearInterval(t);},[]);
   const loadProfile = useCallback(async (s) => {
@@ -158,6 +179,7 @@ export default function Home() {
     setMe({...me,name:name.trim()});say("Profile saved.");
   };
   const signOut=async()=>{stopGps();await supabase.auth.signOut();setMe(null);setSession(null);};
+  const installApp=async()=>{if(!installPrompt)return;await installPrompt.prompt();await installPrompt.userChoice;setInstallPrompt(null);};
   const markNoticesRead=async()=>{
     await supabase.from("notifications").update({read:true}).eq("user_id",me.id).eq("read",false);
     setNotifications(old=>old.map(n=>({...n,read:true})));
@@ -176,7 +198,7 @@ export default function Home() {
     const payload={...form,type:bookingType,customer_id:me.id,quoted_rate:bookingType==="monthly"?(form.with_diesel?currentMachine.monthly_diesel:currentMachine.monthly_no_diesel):bookingType==="daily"?(currentMachine.daily_rate||currentMachine.hourly_rate*8):currentMachine.hourly_rate,status:"pending"};
     const {error}=await supabase.from("bookings").insert(payload);
     if(error)return say(error.message,"error");
-    setBookingOpen(false);say("Booking request sent to the owner.");setTab("bookings");refresh();
+    setBookingOpen(false);setCelebration(x=>x+1);say("Booking request sent to the owner.");setTab("bookings");refresh();
   };
   const cancelBooking=async(b)=>{
     const {error}=await supabase.from("bookings").update({status:"cancelled"}).eq("id",b.id);
@@ -192,7 +214,7 @@ export default function Home() {
     const {error}=await supabase.from("payments").insert({booking_id:b.id,amount:Math.ceil(amount),method,status:"pending"});
     if(error)return say(error.message,"error");
     if(method==="UPI"&&process.env.NEXT_PUBLIC_UPI_ID)window.location.href=upiPaymentLink(process.env.NEXT_PUBLIC_UPI_ID,amount,"JCB "+b.id.slice(0,8));
-    say("Payment recorded. The owner will verify it.");setSelected(null);refresh();
+    setCelebration(x=>x+1);say("Payment recorded. The owner will verify it.");setSelected(null);refresh();
   };
   const printInvoice=(b)=>{
     const bill=billFor(b),logs=bookingLogs(b.id),paid=verifiedPaid(b.id);
@@ -264,7 +286,7 @@ export default function Home() {
     const {error}=await supabase.from("bookings").update({status:"confirmed",driver_id}).eq("id",b.id);
     if(error)return say(error.message,"error");
     await supabase.from("machines").update({status:"busy"}).eq("id",b.machine_id);
-    say("Booking approved and driver assigned.");refresh();
+    setCelebration(x=>x+1);say("Booking approved and driver assigned.");refresh();
   };
   const setBookingStatus=async(b,status)=>{
     const {error}=await supabase.from("bookings").update({status}).eq("id",b.id);
@@ -319,8 +341,8 @@ export default function Home() {
   const pageTitle=({home:"Overview",track:"Live tracking",bookings:"My bookings",profile:"My profile",duty:"My duties",logs:"Fuel & repair log",fleet:"Fleet & rates",finance:"Payments & reports",team:"Team & attendance"})[tab]||"JCB Rental";
   const tabs=tabsByRole[me.role]||tabsByRole.customer;
   return <main className="appShell">
-    <AnimatePresence>{splash&&<Splash/>}</AnimatePresence>
-    <header className="topbar"><div className="brand"><span className="brandIcon">🚜</span><span>JCB <b>RENTAL</b><small>{isAdmin?"OWNER CONSOLE":isDriver?"OPERATOR APP":"CUSTOMER APP"}</small></span></div><div className="topActions"><button className="iconButton" onClick={()=>{setNoticeOpen(true);markNoticesRead();}} aria-label="Notifications">♧{unread>0&&<i>{unread}</i>}</button><div className="avatar">{me.name.slice(0,1).toUpperCase()}</div></div></header>
+    <AnimatePresence>{splash&&<Splash/>}</AnimatePresence><ConfettiBurst fire={celebration}/><ConfettiBurst fire={celebration}/>
+    <header className="topbar"><div className="brand"><span className="brandIcon">🚜</span><span>JCB <b>RENTAL</b><small>{isAdmin?"OWNER CONSOLE":isDriver?"OPERATOR APP":"CUSTOMER APP"}</small></span></div><div className="topActions">{installPrompt&&<button className="iconButton" onClick={installApp} aria-label="Install app">↓</button>}<button className="iconButton" onClick={()=>{setNoticeOpen(true);markNoticesRead();}} aria-label="Notifications">♧{unread>0&&<i>{unread}</i>}</button><div className="avatar">{me.name.slice(0,1).toUpperCase()}</div></div></header>
     <div className="pageHead"><div><div className="eyebrow">{new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"})}</div><h1>{pageTitle}</h1></div><div className="welcomeName">Hi, {me.name.split(" ")[0]}</div></div>
     <section className="content" key={tab}>
       {tab==="home"&&!isAdmin&&!isDriver&&<div className="customerHome">
