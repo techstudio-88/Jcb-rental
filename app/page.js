@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { AnimatePresence, motion } from "framer-motion";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { money, hoursBetween, totalHours, estimateBooking, calculateBill, upiPaymentLink, WORK_TYPES } from "@/lib/domain";
-import { initializeNativeExperience, tapFeedback, shareContent, subscribeNetwork, isNative } from "@/lib/native";
+import { initializeNativeExperience, tapFeedback, successFeedback, shareContent, subscribeNetwork, isNative } from "@/lib/native";
 import { Geolocation } from "@capacitor/geolocation";
 import { App } from "@capacitor/app";
 
@@ -38,7 +38,8 @@ function Toasts({items}) {
   return <div className="toasts">{items.map(x=><motion.div key={x.id} className={"toast "+x.kind} initial={{y:-18,opacity:0}} animate={{y:0,opacity:1}} exit={{opacity:0}}>{x.message}</motion.div>)}</div>;
 }
 function Button({children,variant="primary",small=false,...props}) {
-  return <button className={"btn "+variant+(small?" small":"")} {...props}>{children}</button>;
+  const action=props.onClick;
+  return <button className={"btn "+variant+(small?" small":"")} {...props} onClick={(event)=>{if(!props.disabled)tapFeedback();action?.(event);}}>{children}</button>;
 }
 function Badge({value}) { return <span className={"badge "+statusClass(value)}>{statusLabel(value)}</span>; }
 function Field({label,...props}) { return <label className="field"><span>{label}</span><input {...props}/></label>; }
@@ -228,7 +229,7 @@ export default function Home() {
     const payload={...form,type:bookingType,customer_id:me.id,quoted_rate:bookingType==="monthly"?(form.with_diesel?currentMachine.monthly_diesel:currentMachine.monthly_no_diesel):bookingType==="daily"?(currentMachine.daily_rate||currentMachine.hourly_rate*8):currentMachine.hourly_rate,status:"pending"};
     const {error}=await supabase.from("bookings").insert(payload);
     if(error)return say(error.message,"error");
-    setBookingOpen(false);setCelebration(x=>x+1);say("Booking request sent to the owner.");setTab("bookings");refresh();
+    setBookingOpen(false);setCelebration(x=>x+1);successFeedback();say("Booking request sent to the owner.");setTab("bookings");refresh();
   };
   const cancelBooking=async(b)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     const {error}=await supabase.from("bookings").update({status:"cancelled"}).eq("id",b.id);
@@ -244,7 +245,7 @@ export default function Home() {
     const {error}=await supabase.from("payments").insert({booking_id:b.id,amount:Math.ceil(amount),method,status:"pending"});
     if(error)return say(error.message,"error");
     if(method==="UPI"&&process.env.NEXT_PUBLIC_UPI_ID)window.location.href=upiPaymentLink(process.env.NEXT_PUBLIC_UPI_ID,amount,"JCB "+b.id.slice(0,8));
-    setCelebration(x=>x+1);say("Payment recorded. The owner will verify it.");setSelected(null);refresh();
+    setCelebration(x=>x+1);successFeedback();say("Payment recorded. The owner will verify it.");setSelected(null);refresh();
   };
   const printInvoice=(b)=>{
     const bill=billFor(b),logs=bookingLogs(b.id),paid=verifiedPaid(b.id);
@@ -286,14 +287,14 @@ export default function Home() {
     if(error)return say(error.message,"error");
     const status=await supabase.from("bookings").update({status:"active"}).eq("id",b.id);
     if(status.error)say(status.error.message,"error");
-    setRunning({...row,booking:b});startGps(b);say("Work timer started.");refresh();
+    setRunning({...row,booking:b});startGps(b);successFeedback();say("Work timer started.");refresh();
   };
   const endWork=async()=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     if(!running)return;
     stopGps();
     const {error}=await supabase.from("logbook").update({end_at:new Date().toISOString()}).eq("id",running.id);
     if(error)return say(error.message,"error");
-    setRunning(null);say("Work session completed.");refresh();
+    setRunning(null);successFeedback();say("Work session completed.");refresh();
   };
   const saveExpense=async()=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     if(!expenseOpen)return;
@@ -325,7 +326,7 @@ export default function Home() {
     const {error}=await supabase.from("bookings").update({status:"confirmed",driver_id}).eq("id",b.id);
     if(error)return say(error.message,"error");
     await supabase.from("machines").update({status:"busy"}).eq("id",b.machine_id);
-    setCelebration(x=>x+1);say("Booking approved and driver assigned.");refresh();
+    setCelebration(x=>x+1);successFeedback();say("Booking approved and driver assigned.");refresh();
   };
   const setBookingStatus=async(b,status)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     const {error}=await supabase.from("bookings").update({status}).eq("id",b.id);
