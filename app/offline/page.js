@@ -1,3 +1,4 @@
+"use client";
 import Link from "next/link";
 export default function OfflinePage() {
   return <main style={{minHeight:"100dvh",display:"grid",placeItems:"center",padding:24,background:"#101114",color:"#f7f8fa",fontFamily:"system-ui"}}>
