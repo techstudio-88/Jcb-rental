@@ -523,3 +523,13 @@ html[data-theme="light"] .profileMenu,html[data-theme="light"] .profileMenuHead{
 html[data-theme="light"] .notice p{color:#506070}
 html[data-theme="light"] .phase2Panel,html[data-theme="light"] .phase2MoreCard{color:#18212b}
 @media(prefers-reduced-motion:reduce){.machineVisual .machineArt,.compareMachineIcon .machineArt{animation:none}}
+
+.successOverlay{position:fixed;inset:0;z-index:110;display:grid;place-items:center;padding:22px;background:#05080cbd;backdrop-filter:blur(12px)}
+.successDialog{width:min(100%,390px);padding:30px 25px 24px;text-align:center;border:1px solid #ff9a3d45;border-radius:27px;background:radial-gradient(circle at 50% 0%,#ff922f22,transparent 45%),linear-gradient(150deg,#202b36,#121920);box-shadow:0 30px 100px #000a,0 0 55px #ff8a2414}
+.successMark{width:76px;height:76px;margin:0 auto 18px;display:grid;place-items:center;border-radius:50%;font-size:37px;font-weight:900;color:#142016;background:linear-gradient(145deg,#91f0bd,#38c982);box-shadow:0 12px 34px #39c9823d,0 0 0 9px #39c98214}
+.successKicker{font-size:9px;letter-spacing:2px;font-weight:900;color:#ffad62}
+.successDialog h2{font:800 25px/1.15 'Space Grotesk';letter-spacing:-.8px;margin:10px 0}
+.successDialog p{font-size:13px;line-height:1.65;color:#aeb9c5;margin:0 0 18px}
+.successDialog .btn{margin-top:4px}
+html[data-theme="light"] .successDialog{background:linear-gradient(150deg,#fff,#f1f5f8);color:#18212b;border-color:#f4b77f}
+html[data-theme="light"] .successDialog p{color:#657587}
