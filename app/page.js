@@ -90,6 +90,7 @@ export default function Home() {
   const [machineQuery,setMachineQuery] = useState("");
   const [machineFilter,setMachineFilter] = useState("all");
   const [favoriteIds,setFavoriteIds] = useState([]);
+  const [savedSites,setSavedSites] = useState([]);
   const [compareIds,setCompareIds] = useState([]);
   const [compareOpen,setCompareOpen] = useState(false);
   const [bookingOpen,setBookingOpen] = useState(false);
@@ -187,18 +188,30 @@ export default function Home() {
   useEffect(()=>{setTab(me?.role==="admin"?"home":me?.role==="driver"?"duty":"home");},[me?.role]);
   useEffect(()=>{
     if(!me?.id)return;
-    try{setFavoriteIds(JSON.parse(localStorage.getItem("jcb_favorites_"+me.id)||"[]"));}catch{setFavoriteIds([]);}
+    try{
+      setFavoriteIds(JSON.parse(localStorage.getItem("jcb_favorites_"+me.id)||"[]"));
+      setSavedSites(JSON.parse(localStorage.getItem("jcb_sites_"+me.id)||"[]"));
+    }catch{setFavoriteIds([]);setSavedSites([]);}
   },[me?.id]);
   const toggleFavorite=(id)=>setFavoriteIds(current=>{
     const next=current.includes(id)?current.filter(x=>x!==id):[...current,id];
     try{if(me?.id)localStorage.setItem("jcb_favorites_"+me.id,JSON.stringify(next));}catch{}
     return next;
   });
-  const toggleCompare=(id)=>setCompareIds(current=>{
-    if(current.includes(id))return current.filter(x=>x!==id);
-    if(current.length>=2){say("Compare up to two machines at a time.");return current;}
-    return [...current,id];
-  });
+  const toggleCompare=(id)=>{
+    if(compareIds.includes(id)){setCompareIds(current=>current.filter(x=>x!==id));return;}
+    if(compareIds.length>=2){say("Compare up to two machines at a time.");return;}
+    setCompareIds(current=>[...current,id]);
+  };
+  const saveCurrentSite=()=>{
+    const address=form.site_address.trim();
+    if(!address)return say("Enter a site address first.","error");
+    if(savedSites.some(x=>x.toLowerCase()===address.toLowerCase()))return say("This site is already saved.");
+    const next=[address,...savedSites].slice(0,8);
+    setSavedSites(next);
+    try{localStorage.setItem("jcb_sites_"+me.id,JSON.stringify(next));}catch{}
+    say("Site saved on this device.","success");
+  };
   useEffect(()=>{if(!nativeInfo.native)return;let handle;App.addListener("backButton",()=>{if(expenseOpen)setExpenseOpen(null);else if(machineOpen)setMachineOpen(false);else if(selected)setSelected(null);else if(bookingOpen)setBookingOpen(false);else if(noticeOpen)setNoticeOpen(false);else if(tab!=="home")setTab("home");else App.exitApp();}).then(x=>{handle=x;});return()=>{handle?.remove?.();};},[nativeInfo.native,expenseOpen,machineOpen,selected,bookingOpen,noticeOpen,tab]);
 
 
@@ -429,7 +442,7 @@ export default function Home() {
   });
   return <main className="appShell">
     {me.isDemo&&<div style={{padding:"9px 14px",textAlign:"center",fontSize:12,background:"#fff1c2",color:"#624300",fontWeight:700}}>TEMPORARY DEMO MODE · {me.role==="admin"?"Owner / Admin":me.role==="driver"?"Driver":"Customer"} view · Changes are not saved</div>}
-    <AnimatePresence>{splash&&<Splash/>}</AnimatePresence><ConfettiBurst fire={celebration}/><ConfettiBurst fire={celebration}/>
+    <AnimatePresence>{splash&&<Splash/>}</AnimatePresence><ConfettiBurst fire={celebration}/>
     <header className="topbar"><div className="brand"><span className="brandIcon">🚜</span><span>JCB <b>RENTAL</b><small>{isAdmin?"OWNER CONSOLE":isDriver?"OPERATOR APP":"CUSTOMER APP"}</small></span></div><div className="topActions">{installPrompt&&<button className="iconButton" onClick={installApp} aria-label="Install app">↓</button>}{!online&&<span className="networkPill" role="status">OFFLINE</span>}<button className="iconButton" onClick={()=>{tapFeedback();setNoticeOpen(true);markNoticesRead();}} aria-label="Notifications">♧{unread>0&&<i>{unread}</i>}</button><div className="avatar">{me.name.slice(0,1).toUpperCase()}</div></div></header>
     <div className="pageHead"><div><div className="eyebrow">{new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"})}</div><h1>{pageTitle}</h1></div><div className="welcomeName">Hi, {me.name.split(" ")[0]}</div></div>
     <section className="content" key={tab}>
@@ -474,7 +487,7 @@ export default function Home() {
     <AnimatePresence>{noticeOpen&&<div className="overlay" onClick={()=>setNoticeOpen(false)}><motion.div className="sheet" initial={{y:"100%"}} animate={{y:0}} exit={{y:"100%"}} onClick={e=>e.stopPropagation()}><div className="sheetHandle"/><div className="rowBetween"><h2>Notifications</h2><button className="textButton" onClick={()=>setNoticeOpen(false)}>Close</button></div>{notifications.length===0?<Empty icon="🔕" title="All quiet">New booking and payment updates will show here.</Empty>:notifications.map(n=><div className={"notice "+(n.read?"read":"")} key={n.id}><b>{n.title}</b><p>{n.body}</p><small>{new Date(n.created_at).toLocaleString("en-IN")}</small></div>)}</motion.div></div>}</AnimatePresence>
     <AnimatePresence>{bookingOpen&&<div className="overlay" onClick={()=>setBookingOpen(false)}><motion.div className="sheet" initial={{y:"100%"}} animate={{y:0}} exit={{y:"100%"}} onClick={e=>e.stopPropagation()}><div className="sheetHandle"/><div className="rowBetween"><h2>{bookingType==="monthly"?"Monthly plan":bookingType==="daily"?"Daily booking":"Hourly booking"}</h2><button className="textButton" onClick={()=>setBookingOpen(false)}>Close</button></div><div className="stepDots"><i className={bookingStep>=1?"on":""}/><i className={bookingStep>=2?"on":""}/><i className={bookingStep>=3?"on":""}/></div>
       {bookingStep===1&&<><SelectField label="Choose available machine" value={form.machine_id} onChange={e=>updateForm("machine_id",e.target.value)}><option value="">Select machine</option>{data.machines.filter(m=>m.status==="free").map(m=><option key={m.id} value={m.id}>{m.model} · {money(m.hourly_rate)}/hr</option>)}</SelectField>{currentMachine&&<div className="rateRow"><span>Selected machine</span><b>{currentMachine.model}</b></div>}</>}
-      {bookingStep===2&&<><Field label="Work site address" placeholder="Full address / village / landmark" value={form.site_address} onChange={e=>updateForm("site_address",e.target.value)}/><SelectField label="Type of work" value={form.work_type} onChange={e=>updateForm("work_type",e.target.value)}>{WORK_TYPES.map(w=><option key={w}>{w}</option>)}</SelectField><Field label="Start date" type="date" value={form.start_date} onChange={e=>updateForm("start_date",e.target.value)}/></>}
+      {bookingStep===2&&<><Field label="Work site address" placeholder="Full address / village / landmark" value={form.site_address} onChange={e=>updateForm("site_address",e.target.value)}/>{savedSites.length>0&&<div className="savedSites"><small>YOUR SAVED SITES</small><div>{savedSites.map(site=><button type="button" key={site} className={form.site_address===site?"active":""} onClick={()=>updateForm("site_address",site)}>{site}</button>)}</div></div>}<div className="siteSaveRow"><span>Save frequently used locations on this device</span><button type="button" onClick={saveCurrentSite}>＋ Save site</button></div><SelectField label="Type of work" value={form.work_type} onChange={e=>updateForm("work_type",e.target.value)}>{WORK_TYPES.map(w=><option key={w}>{w}</option>)}</SelectField><Field label="Start date" type="date" value={form.start_date} onChange={e=>updateForm("start_date",e.target.value)}/></>}
       {bookingStep===3&&<><Card className="reviewCard"><div className="rowBetween"><b>{currentMachine?.model}</b><Badge value="free"/></div><p className="muted">📍 {form.site_address}</p><p className="muted">{form.work_type} · Starts {form.start_date}</p></Card>{bookingType==="monthly"?<><Field label="Number of months" type="number" min="1" max="36" value={form.months} onChange={e=>updateForm("months",e.target.value)}/><div className="segmented"><button className={form.with_diesel?"on":""} onClick={()=>updateForm("with_diesel",true)}>With diesel</button><button className={!form.with_diesel?"on":""} onClick={()=>updateForm("with_diesel",false)}>Without diesel</button></div></>:bookingType==="daily"?<Field label="Number of days" type="number" min="1" value={form.duration_days} onChange={e=>updateForm("duration_days",e.target.value)}/>:<Field label="Estimated hours" type="number" min="1" step=".5" value={form.duration_hours} onChange={e=>updateForm("duration_hours",e.target.value)}/>}<div className="estimate"><span>Estimated rental (before GST)</span><b>{money(estimate)}</b><small>Final invoice is calculated from approved rates and logged work.</small></div></>}
       <div className="buttonRow">{bookingStep>1&&<Button variant="secondary" onClick={()=>setBookingStep(s=>s-1)}>← Back</Button>}{bookingStep<3?<Button onClick={advanceBooking}>Continue →</Button>:<Button onClick={createBooking}>Send booking request →</Button>}</div></motion.div></div>}</AnimatePresence>
     <AnimatePresence>{selected&&<div className="overlay" onClick={()=>setSelected(null)}><motion.div className="sheet" initial={{y:"100%"}} animate={{y:0}} exit={{y:"100%"}} onClick={e=>e.stopPropagation()}><div className="sheetHandle"/><div className="rowBetween"><h2>Logbook & bill</h2><button className="textButton" onClick={()=>setSelected(null)}>Close</button></div><Card><div className="rowBetween"><b>{selected.machines?.model}</b><Badge value={selected.status}/></div>{bookingLogs(selected.id).map(l=><div className="rateRow" key={l.id}><span>{new Date(l.start_at).toLocaleDateString("en-IN")} · {new Date(l.start_at).toLocaleTimeString("en-IN")}</span><b>{hoursBetween(l).toFixed(2)} h</b></div>)}</Card><Card>{[["Total hours",billFor(selected).hours.toFixed(2)],["Rental",money(billFor(selected).base)],["GST estimate (18%)",money(billFor(selected).tax)],["Total",money(billFor(selected).total)],["Submitted payments",money(allSubmitted(selected.id))],["Verified paid",money(verifiedPaid(selected.id))],["Balance",money(Math.max(0,billFor(selected).total-allSubmitted(selected.id)))]].map(([l,v])=><div className="rateRow" key={l}><span>{l}</span><b>{v}</b></div>)}</Card>{Math.max(0,billFor(selected).total-allSubmitted(selected.id))>0&&<><h3>Submit payment</h3>{["UPI","Bank","Cash"].map(m=><Button key={m} variant="secondary" onClick={()=>payBalance(selected,m)}>Pay / record via {m}</Button>)}</>}<Button onClick={()=>printInvoice(selected)}>Print / save invoice PDF ↓</Button></motion.div></div>}</AnimatePresence>
