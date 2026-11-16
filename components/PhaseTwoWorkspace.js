@@ -61,7 +61,7 @@ export default function PhaseTwoWorkspace({ tab, me, say, data, refresh, onNavig
   }, [me?.id, say]);
 
   const loadWorkspace = useCallback(async () => {
-    if (!me?.id) return;
+    if (!me?.id || me?.isDemo) return;
     setLoading(true);
     try {
       if (tab === "support") await loadSupport();
@@ -291,6 +291,8 @@ export default function PhaseTwoWorkspace({ tab, me, say, data, refresh, onNavig
     if (error) return say(error.message, "error");
     setReferralPhone(""); say("Referral invitation recorded. Share your code with the customer.", "success"); loadWorkspace();
   };
+
+  if (me?.isDemo && tab !== "more") return <Panel title="Read-only demo preview" subtitle="This module is available with a real account. Demo mode never reads or changes live business data.">Sign in with verified phone OTP to use this feature with your own account.</Panel>;
 
   if (tab === "more") return <div className="phase2MoreGrid">{(isAdmin ? [["support","Help desk","Review and reply to customer tickets"],["changes","Booking changes","Approve or reject customer change requests"],["reviews","Reviews","Moderate customer feedback"],["service","Maintenance","Plan servicing and machine expenses"],["payroll","Payroll & incentives","Attendance register and operator incentives"],["offers","Coupons & referrals","Publish offers and manage referrals"]] : [["changes","Booking changes","Request a change to a pending or confirmed booking"],["reviews","Reviews","Rate completed rentals"],["rewards","Offers & referrals","View coupons and invite customers"],["support","Help & support","Create a ticket and contact the owner"]]).map(([key,title,desc])=><button className="phase2MoreCard" key={key} onClick={()=>onNavigate?.(key)}><b>{title}</b><span>{desc}</span><i>Open →</i></button>)}</div>;
 
