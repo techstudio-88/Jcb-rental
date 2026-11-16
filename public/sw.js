@@ -1,4 +1,4 @@
-const CACHE = "jcb-rental-shell-v2";
+const CACHE = "jcb-rental-shell-v3";
 const SHELL = ["/", "/offline/", "/manifest.json"];
 self.addEventListener("install", event => {
   event.waitUntil((async()=>{const cache=await caches.open(CACHE);await cache.addAll(SHELL);await self.skipWaiting();})());
