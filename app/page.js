@@ -145,6 +145,7 @@ export default function Home() {
   const [machineOpen,setMachineOpen] = useState(false);
   const [running,setRunning] = useState(null);
   const [celebration,setCelebration] = useState(0);
+  const [successNotice,setSuccessNotice] = useState(null);
   const [installPrompt,setInstallPrompt] = useState(null);
   const [nativeInfo,setNativeInfo] = useState({native:false,platform:"web"});
   const [online,setOnline] = useState(true);
@@ -343,7 +344,7 @@ export default function Home() {
     const payload={...form,type:bookingType,customer_id:me.id,quoted_rate:bookingType==="monthly"?(form.with_diesel?currentMachine.monthly_diesel:currentMachine.monthly_no_diesel):bookingType==="daily"?(currentMachine.daily_rate||currentMachine.hourly_rate*8):currentMachine.hourly_rate,status:"pending"};
     const {error}=await supabase.from("bookings").insert(payload);
     if(error)return say(error.message,"error");
-    setBookingOpen(false);setCelebration(x=>x+1);successFeedback();say("Booking request sent to the owner.");setTab("bookings");refresh();
+    setBookingOpen(false);setCelebration(x=>x+1);setSuccessNotice({title:"Booking request sent",body:"Your machine request is on its way to the rental owner. You can follow every update in Bookings."});successFeedback();say("Booking request sent to the owner.");setTab("bookings");refresh();
   };
   const cancelBooking=async(b)=>{if(me?.isDemo){say("This is a read-only demo. Changes are not saved.");return;}
     const {error}=await supabase.from("bookings").update({status:"cancelled"}).eq("id",b.id);
@@ -359,7 +360,7 @@ export default function Home() {
     const {error}=await supabase.from("payments").insert({booking_id:b.id,amount:Math.ceil(amount),method,status:"pending"});
     if(error)return say(error.message,"error");
     if(method==="UPI"&&process.env.NEXT_PUBLIC_UPI_ID)window.location.href=upiPaymentLink(process.env.NEXT_PUBLIC_UPI_ID,amount,"JCB "+b.id.slice(0,8));
-    setCelebration(x=>x+1);successFeedback();say("Payment recorded. The owner will verify it.");setSelected(null);refresh();
+    setCelebration(x=>x+1);setSuccessNotice({title:"Payment submitted",body:"Your payment has been recorded. The owner will verify it and update your booking balance."});successFeedback();say("Payment recorded. The owner will verify it.");setSelected(null);refresh();
   };
   const printInvoice=(b)=>{
     const bill=billFor(b),logs=bookingLogs(b.id),paid=verifiedPaid(b.id);
@@ -607,6 +608,15 @@ export default function Home() {
       {compareOpen&&<div className="overlay compareOverlay" onClick={()=>setCompareOpen(false)}><motion.div className="sheet compareSheet" initial={{y:"100%"}} animate={{y:0}} exit={{y:"100%"}} onClick={e=>e.stopPropagation()}><div className="sheetHandle"/><div className="rowBetween"><div><div className="eyebrow">SIDE-BY-SIDE</div><h2>Compare machines</h2></div><button className="textButton" onClick={()=>setCompareOpen(false)}>Close</button></div><div className="compareGrid">{compareMachines.map(m=><div className="compareColumn" key={m.id}><div className="compareMachineIcon"><MachineIllustration compact/></div><b>{m.model}</b><Badge value={m.status}/><div className="compareMetric"><small>Hourly</small><strong>{money(m.hourly_rate)}</strong></div><div className="compareMetric"><small>Daily</small><strong>{money(m.daily_rate||m.hourly_rate*8)}</strong></div><div className="compareMetric"><small>Monthly · diesel</small><strong>{money(m.monthly_diesel)}</strong></div><div className="compareMetric"><small>Monthly · no diesel</small><strong>{money(m.monthly_no_diesel)}</strong></div><Button small disabled={m.status!=="free"} onClick={()=>{setBookingType("monthly");setBookingStep(1);setForm(f=>({...f,machine_id:m.id}));setCompareOpen(false);setBookingOpen(true);}}>Select machine</Button></div>)}</div></motion.div></div>}
     </section>
     <nav className="bottomNav" aria-label="Main navigation">{tabs.map(([key,icon,label])=><button key={key} type="button" aria-current={tab===key?"page":undefined} aria-label={label} className={tab===key?"active":""} onClick={()=>{tapFeedback();setTab(key);}}><span aria-hidden="true">{icon}</span><small>{label}</small></button>)}</nav>
+    <AnimatePresence>{successNotice&&<div className="successOverlay" role="dialog" aria-modal="true" aria-labelledby="success-title">
+      <motion.div className="successDialog" initial={{opacity:0,scale:.82,y:22}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:.94,y:12}} transition={{type:"spring",stiffness:260,damping:22}}>
+        <motion.div className="successMark" initial={{scale:0,rotate:-35}} animate={{scale:1,rotate:0}} transition={{delay:.12,type:"spring",stiffness:320,damping:14}}>✓</motion.div>
+        <span className="successKicker">JCB RENTAL · CONFIRMED</span>
+        <h2 id="success-title">{successNotice.title}</h2>
+        <p>{successNotice.body}</p>
+        <Button onClick={()=>setSuccessNotice(null)}>Continue</Button>
+      </motion.div>
+    </div>}</AnimatePresence>
     <Toasts items={toasts}/>
 
     <AnimatePresence>{noticeOpen&&<div className="overlay" onClick={()=>setNoticeOpen(false)}><motion.div className="sheet" initial={{y:"100%"}} animate={{y:0}} exit={{y:"100%"}} onClick={e=>e.stopPropagation()}><div className="sheetHandle"/><div className="rowBetween"><h2>Notifications</h2><button className="textButton" onClick={()=>setNoticeOpen(false)}>Close</button></div>{notifications.length===0?<Empty icon="🔕" title="All quiet">New booking and payment updates will show here.</Empty>:notifications.map(n=><div className={"notice "+(n.read?"read":"")} key={n.id}><b>{n.title}</b><p>{n.body}</p><small>{new Date(n.created_at).toLocaleString("en-IN")}</small></div>)}</motion.div></div>}</AnimatePresence>
