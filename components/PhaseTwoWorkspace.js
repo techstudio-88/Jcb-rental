@@ -116,7 +116,25 @@ export default function PhaseTwoWorkspace({ tab, me, say, data, refresh, onNavig
     } finally { setLoading(false); }
   }, [tab, me?.id, say, loadSupport]);
 
-  useEffect(() => { loadWorkspace(); }, [loadWorkspace]);
+  useEffect(() => {
+    if (me?.isDemo) {
+      const stamp = new Date().toISOString();
+      setTickets([{id:"demo-ticket-1",subject:"Machine arrival update",category:"booking",status:"open",updated_at:stamp,user_id:me.id}]);
+      setMessages([{id:"demo-message-1",ticket_id:"demo-ticket-1",sender_id:me.id,message:"Please confirm the expected arrival time.",created_at:stamp}]);
+      setReviews([{id:"demo-review-1",rating:5,comment:"Operator arrived on time and work was completed neatly.",is_visible:true,created_at:stamp,machines:{model:"JCB 3DX Super"},profiles:{name:"Aarav Sharma"}}]);
+      setChanges([{id:"demo-change-1",booking_id:"db2",requested_changes:{site_address:"New site, Kotdwar",start_date:stamp.slice(0,10)},status:"pending",created_at:stamp,bookings:{site_address:"Industrial Area, Kotdwar",start_date:stamp.slice(0,10)}}]);
+      setCoupons([{id:"demo-coupon-1",code:"WELCOME10",description:"Welcome offer",discount_type:"percent",discount_value:10,expires_at:null,is_active:true}]);
+      setReferrals([{id:"demo-referral-1",referred_phone:"+91 98765 11111",referral_code:"JCB-DEMO01",status:"pending",created_at:stamp}]);
+      setAttendance([{id:"demo-att-1",driver_id:"demo-driver",attendance_date:today(),status:"present",check_in:stamp,check_out:null,profiles:{name:"Vikram Singh",daily_wage:900}}]);
+      setBreaks([]);
+      setIncentives([{id:"demo-incentive-1",driver_id:"demo-driver",amount:500,reason:"On-time completion",period_month:monthStart(),profiles:{name:"Vikram Singh"}}]);
+      setPayrollRows([{id:"demo-payroll-1",driver_id:"demo-driver",period_month:monthStart(),attendance_days:18,base_amount:16200,incentive_amount:500,total_amount:16700,status:"pending",profiles:{name:"Vikram Singh",daily_wage:900}}]);
+      setMaintenance([{id:"demo-maint-1",machine_id:"dm4",maintenance_type:"service",description:"500-hour scheduled service",due_date:today(),cost:6500,status:"scheduled",machines:{model:"JCB 3DX Plus"}}]);
+      setExpenses([{id:"demo-exp-1",machine_id:"dm2",category:"diesel",amount:4200,notes:"Morning diesel refill",expense_date:today(),machines:{model:"JCB 4DX"}}]);
+      return;
+    }
+    loadWorkspace();
+  }, [loadWorkspace, me?.isDemo]);
 
   useEffect(() => {
     if (tab !== "support" || !activeTicket?.id) { setMessages([]); return; }
